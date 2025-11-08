@@ -1,6 +1,7 @@
 use crate::stream::Stream;
 
-
+/// Source trait describe interface of music in storage.
+/// Provides audio Stream and title.
 pub trait Source {
     fn get_stream(&self) -> Stream;
     fn get_title(&self) -> String;

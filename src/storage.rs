@@ -1,5 +1,6 @@
 use crate::source::Source;
 
+/// Storage trait describe interface to audio sources manipulation.
 pub trait Storage {
     fn load_sources(&mut self);
     fn get(&self, index: usize) -> Box<dyn Source>;

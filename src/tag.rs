@@ -1,3 +1,4 @@
+/// Tag structures. Used to Sources in Storage classification.
 pub struct Tag {
     text: String,
     color: String

@@ -2,6 +2,8 @@ use crate::stream::Stream;
 use crate::source::Source;
 use crate::audio::{Audio, AudioError};
 
+/// Track is container one Stream and it's settings.
+/// Composition implements Audio trait.
 #[derive(Clone)]
 pub struct Track {
     volume: u8,
@@ -76,7 +78,7 @@ mod tests {
     struct TestSource {}
     impl Source for TestSource {
         fn get_stream(&self) -> Stream {
-            Stream {  }
+            Stream::new()
         }
 
         fn get_title(&self) -> String {
@@ -129,8 +131,7 @@ mod tests {
     fn track_get_stream() {
         let s = TestSource {};
         let tr = Track::new(Box::new(s));
-        let s = TestSource {};
-        assert_eq!(s.get_stream(), tr.get_stream().unwrap());
+        assert!(tr.get_stream().unwrap().is_empty());
     }
 
     #[test]

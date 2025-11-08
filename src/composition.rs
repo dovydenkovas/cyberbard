@@ -2,6 +2,9 @@ use crate::stream::Stream;
 use crate::source::Source;
 use crate::audio::{Audio, AudioError};
 
+/// Composition is container for other compositions and tracks.
+/// Contains common settings for group of music and procedure summary Stream.
+/// Composition implements Audio trait.
 #[derive(Clone)]
 pub struct Composition {
     volume: u8,
@@ -50,7 +53,7 @@ impl Audio for Composition {
         for audio in self.audios.iter() {
             match audio.get_stream() {
                 Some(s) => {
-                    stream.merge(&s);
+                    stream.merge(s);
                     is_none = false;
                 },
                 _ => ()
@@ -117,7 +120,7 @@ mod tests {
     struct TestSource {}
     impl Source for TestSource {
         fn get_stream(&self) -> Stream {
-            Stream {  }
+            Stream::new()
         }
 
         fn get_title(&self) -> String {
@@ -171,8 +174,7 @@ mod tests {
         let tr = get_track();
         let mut c = Composition::new();
         let _ = c.insert_audio(0, Box::new(tr));
-        let tr = get_track();
-        assert_eq!(tr.get_stream(), c.get_stream());
+        assert!(c.get_stream().unwrap().is_empty());
     }
 
     #[test]

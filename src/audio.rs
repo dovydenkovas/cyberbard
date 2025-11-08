@@ -1,6 +1,7 @@
 use crate::stream::Stream;
 use crate::source::Source;
 
+/// Audio trait. Describe Track and Composition interface.
 pub trait Audio {
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError>;
     fn set_source(&mut self, source: Box<dyn Source>);
