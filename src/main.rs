@@ -1,17 +1,17 @@
 mod audio;
-mod stream;
-mod source;
 mod composition;
-mod track;
+mod gui;
+mod source;
 mod storage;
+mod stream;
 mod tag;
+mod track;
 // mod player;
 
+use std::thread;
 /// Application entry point.
 /// Initialize all structures and start player and application threads.
-
 use std::time::Duration;
-use std::thread;
 
 use rodio::Source;
 
@@ -32,10 +32,8 @@ fn mixer() -> Result<(), Box<dyn std::error::Error>> {
     let src = rodio::Decoder::try_from(file)?;
     controller.add(src.delay(Duration::from_secs(1)).repeat_infinite());
 
-
     println!("!!!");
     sink.append(mixer);
-
 
     println!("!!!");
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -56,7 +54,6 @@ fn mixer() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 fn sinks() -> Result<(), Box<dyn std::error::Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
     let s1 = rodio::Sink::connect_new(stream_handle.mixer());
@@ -74,7 +71,6 @@ fn sinks() -> Result<(), Box<dyn std::error::Error>> {
     s1.play();
     s2.play();
 
-
     // std::thread::sleep(std::time::Duration::from_secs(2));
     // sink.try_seek(Duration::from_secs(20))?;
 
@@ -90,5 +86,5 @@ fn sinks() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
-    let _ = mixer();
+    gui::window::run_gui();
 }
