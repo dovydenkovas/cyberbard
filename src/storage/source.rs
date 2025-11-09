@@ -1,4 +1,4 @@
-use crate::stream::Stream;
+use super::stream::Stream;
 
 /// Source trait describe interface of music in storage.
 /// Provides audio Stream and title.

@@ -1,11 +1,6 @@
 mod audio;
-mod composition;
 mod gui;
-mod source;
 mod storage;
-mod stream;
-mod tag;
-mod track;
 // mod player;
 
 use std::thread;

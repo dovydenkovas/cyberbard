@@ -1,5 +1,5 @@
-use crate::stream::Stream;
-use crate::source::Source;
+use crate::storage::source::Source;
+use crate::storage::stream::Stream;
 
 /// Audio trait. Describe Track and Composition interface.
 pub trait Audio {

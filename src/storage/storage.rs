@@ -1,4 +1,4 @@
-use crate::source::Source;
+use super::source::Source;
 
 /// Storage trait describe interface to audio sources manipulation.
 pub trait Storage {

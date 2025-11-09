@@ -1,6 +1,6 @@
-use crate::stream::Stream;
-use crate::source::Source;
-use crate::audio::{Audio, AudioError};
+use crate::audio::audio::{Audio, AudioError};
+use crate::storage::source::Source;
+use crate::storage::stream::Stream;
 
 /// Composition is container for other compositions and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
@@ -9,7 +9,7 @@ use crate::audio::{Audio, AudioError};
 pub struct Composition {
     volume: u8,
     is_looped_flag: bool,
-    audios: Vec<Box<dyn Audio>>
+    audios: Vec<Box<dyn Audio>>,
 }
 
 impl Composition {
@@ -17,14 +17,14 @@ impl Composition {
         Composition {
             volume: 100,
             is_looped_flag: true,
-            audios: vec![]
+            audios: vec![],
         }
     }
 }
 
 impl Audio for Composition {
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
-       Err(AudioError::NotATrack)
+        Err(AudioError::NotATrack)
     }
 
     fn set_source(&mut self, _: Box<dyn Source>) {
@@ -36,15 +36,15 @@ impl Audio for Composition {
     }
 
     fn set_volume(&mut self, volume: u8) {
-       self.volume = volume.clamp(0, 100);
+        self.volume = volume.clamp(0, 100);
     }
 
     fn is_looped(&self) -> bool {
-       self.is_looped_flag
+        self.is_looped_flag
     }
 
     fn looped(&mut self, looped: bool) {
-       self.is_looped_flag = looped;
+        self.is_looped_flag = looped;
     }
 
     fn get_stream(&self) -> Option<Stream> {
@@ -55,15 +55,11 @@ impl Audio for Composition {
                 Some(s) => {
                     stream.merge(s);
                     is_none = false;
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
-        if is_none {
-            None
-        } else {
-            Some(stream)
-        }
+        if is_none { None } else { Some(stream) }
     }
 
     fn insert_audio(&mut self, index: usize, audio: Box<dyn Audio>) -> Result<(), AudioError> {
@@ -76,7 +72,7 @@ impl Audio for Composition {
             std::cmp::Ordering::Greater => {
                 self.audios.insert(index, audio);
                 Ok(())
-            },
+            }
         }
     }
 
@@ -90,14 +86,14 @@ impl Audio for Composition {
             std::cmp::Ordering::Greater => {
                 self.audios.remove(index);
                 Ok(())
-            },
+            }
         }
     }
 
     fn get_audio(&self, index: usize) -> Result<Box<dyn Audio>, AudioError> {
         match self.audios.len().cmp(&index) {
             std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
-            std::cmp::Ordering::Greater => Ok(self.audios[index].clone())
+            std::cmp::Ordering::Greater => Ok(self.audios[index].clone()),
         }
     }
 
@@ -106,15 +102,14 @@ impl Audio for Composition {
     }
 
     fn clone_box(&self) -> Box<dyn Audio> {
-       Box::new(self.clone())
+        Box::new(self.clone())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{source::Source, track::Track};
+    use crate::{audio::track::Track, storage::source::Source};
 
     #[derive(PartialEq, Debug, Clone)]
     struct TestSource {}

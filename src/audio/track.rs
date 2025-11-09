@@ -1,6 +1,6 @@
-use crate::stream::Stream;
-use crate::source::Source;
-use crate::audio::{Audio, AudioError};
+use crate::audio::audio::{Audio, AudioError};
+use crate::storage::source::Source;
+use crate::storage::stream::Stream;
 
 /// Track is container one Stream and it's settings.
 /// Composition implements Audio trait.
@@ -13,13 +13,17 @@ pub struct Track {
 
 impl Track {
     pub fn new(source: Box<dyn Source>) -> Track {
-        Track { volume: 100, is_looped_flag: true, source}
+        Track {
+            volume: 100,
+            is_looped_flag: true,
+            source,
+        }
     }
 }
 
 impl Audio for Track {
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
-       Ok(self.source.clone())
+        Ok(self.source.clone())
     }
 
     fn set_source(&mut self, source: Box<dyn Source>) {
@@ -43,11 +47,11 @@ impl Audio for Track {
     }
 
     fn get_stream(&self) -> Option<Stream> {
-       Some(self.source.get_stream())
+        Some(self.source.get_stream())
     }
 
     fn insert_audio(&mut self, _index: usize, _audio: Box<dyn Audio>) -> Result<(), AudioError> {
-       Err(AudioError::NotAComposition)
+        Err(AudioError::NotAComposition)
     }
 
     fn erase_audio(&mut self, _index: usize) -> Result<(), AudioError> {
@@ -63,16 +67,14 @@ impl Audio for Track {
     }
 
     fn clone_box(&self) -> Box<dyn Audio> {
-       Box::new(self.clone())
+        Box::new(self.clone())
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source::Source;
+    use crate::storage::source::Source;
 
     #[derive(PartialEq, Debug, Clone)]
     struct TestSource {}
@@ -102,10 +104,10 @@ mod tests {
     #[test]
     fn track_source() {
         let mut tr = get_track();
-        let s = Box::new(TestSource{});
+        let s = Box::new(TestSource {});
         assert_eq!(s.get_title(), tr.get_source().unwrap().get_title());
         tr.set_source(s);
-        let s = Box::new(TestSource{});
+        let s = Box::new(TestSource {});
         assert_eq!(s.get_title(), tr.get_source().unwrap().get_title());
     }
 
