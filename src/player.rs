@@ -1,6 +1,22 @@
-use std::time::Duration;
+//   Cyberbard music player for board role-playing games.
+//   Copyright (C) 2025  Aleksandr Dovydenkov <asd@altlinux.org>
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU General Public License for more details.
+//
+//   You should have received a copy of the GNU General Public License
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>
+
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::time::Duration;
 
 use crate::stream::Stream;
 
@@ -10,7 +26,7 @@ enum Command {
     Reset,
     Stop,
     SetPosition(Duration),
-    GetPosition
+    GetPosition,
 }
 
 enum Response {
@@ -18,8 +34,6 @@ enum Response {
     // Ok,
     // Err
 }
-
-
 
 /// Music Player.
 /// Get audio Stream and control play process.
@@ -30,7 +44,6 @@ pub struct Player {
     paused: bool,
 }
 
-
 impl Player {
     pub fn new() -> Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
@@ -39,12 +52,9 @@ impl Player {
         let handle = thread::spawn(move || {
             loop {
                 match cmd_rx.try_recv() {
-                    Ok(Command::Play) => {
-
-                    }
+                    Ok(Command::Play) => {}
 
                     Ok(Command::GetPosition) => {
-
                         resp_tx.send(Response::Position(Duration::from_millis(50)));
                     }
                     Err(mpsc::TryRecvError::Empty) => {
@@ -61,18 +71,13 @@ impl Player {
             cmd_tx,
             resp_rx,
             handle: Some(handle),
-            paused: true
+            paused: true,
         }
-
     }
 
-    pub fn set_stream(&self, stream: Stream) {
+    pub fn set_stream(&self, stream: Stream) {}
 
-    }
-
-    pub fn get_stream(&self) -> Stream {
-
-    }
+    pub fn get_stream(&self) -> Stream {}
 
     pub fn play(&mut self) {
         let _ = self.cmd_tx.send(Command::Play);
@@ -102,16 +107,10 @@ impl Player {
         }
     }
 
-    pub fn get_volume(&self) -> u8 {
+    pub fn get_volume(&self) -> u8 {}
 
-    }
-
-    pub fn set_volume(&mut self, vol: u8) {
-
-    }
+    pub fn set_volume(&mut self, vol: u8) {}
 }
-
-
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;

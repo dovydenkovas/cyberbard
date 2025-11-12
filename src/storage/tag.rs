@@ -1,12 +1,31 @@
+//   Cyberbard music player for board role-playing games.
+//   Copyright (C) 2025  Aleksandr Dovydenkov <asd@altlinux.org>
+//
+//   This program is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or
+//   (at your option) any later version.
+//
+//   This program is distributed in the hope that it will be useful,
+//   but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   GNU General Public License for more details.
+//
+//   You should have received a copy of the GNU General Public License
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>
+
 /// Tag structures. Used to Sources in Storage classification.
 pub struct Tag {
     text: String,
-    color: String
+    color: String,
 }
 
 impl Tag {
     pub fn new(text: String, color: String) -> Tag {
-        let mut tag = Tag {text: String::new(), color: String::new()};
+        let mut tag = Tag {
+            text: String::new(),
+            color: String::new(),
+        };
         tag.set_text(text);
         tag.set_color(color);
         tag
@@ -31,8 +50,7 @@ impl Tag {
             self.color = color;
         } else if self.is_correct_color(&self.color) {
             // Skip is correct color
-        }
-        else {
+        } else {
             self.color = "#2F80ED".to_string()
         }
     }
@@ -53,12 +71,12 @@ impl Tag {
 
 pub struct SourceTagLink {
     source: String,
-    tag: String
+    tag: String,
 }
 
 impl SourceTagLink {
     pub fn new(source: String, tag: String) -> SourceTagLink {
-        SourceTagLink {source, tag}
+        SourceTagLink { source, tag }
     }
 
     pub fn get_tag(&self) -> String {
@@ -69,7 +87,6 @@ impl SourceTagLink {
         self.source.clone()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
