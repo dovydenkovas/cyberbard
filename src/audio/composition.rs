@@ -64,7 +64,7 @@ impl Audio for Composition {
     }
 
     fn get_stream(&self) -> Option<Stream> {
-        let mut stream = Stream::new();
+        let mut stream = Stream::new(vec![]);
         let mut is_none = true;
         for audio in self.audios.iter() {
             match audio.get_stream() {
@@ -131,7 +131,7 @@ mod tests {
     struct TestSource {}
     impl Source for TestSource {
         fn get_stream(&self) -> Stream {
-            Stream::new()
+            Stream::new(vec![])
         }
 
         fn get_title(&self) -> String {

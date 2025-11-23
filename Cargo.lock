@@ -893,6 +893,7 @@ dependencies = [
  "image",
  "rodio",
  "serde",
+ "walkdir",
 ]
 
 [[package]]

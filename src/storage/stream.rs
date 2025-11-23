@@ -14,34 +14,134 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-/// Audio stream. Low level structure to send audio to player.
 use rodio::Sink;
+use rodio::{OutputStream, Source};
+use std::time::Duration;
+
+pub trait Opener {
+    fn source(&self) -> Box<dyn Source + Send>;
+}
+
+pub struct SubStream {
+    source: Box<dyn Opener + Send>,
+}
+
+impl SubStream {
+    pub fn new(source: Box<dyn Opener + Send>) -> SubStream {
+        SubStream { source }
+    }
+
+    pub fn reset_sink(&self, sink: &mut Sink) {
+        let source = self.source.source();
+        sink.clear();
+        sink.append(source);
+    }
+}
+
+pub struct Playlist {
+    sources: Vec<SubStream>,
+    current: usize,
+    sink: Sink,
+    is_stopped: bool,
+}
+
+impl Playlist {
+    pub fn new(ostream: &mut OutputStream, sources: Vec<SubStream>) -> Option<Playlist> {
+        if sources.len() == 0 {
+            None
+        } else {
+            let mut sink = Sink::connect_new(ostream.mixer());
+            sources[0].reset_sink(&mut sink);
+            Some(Playlist {
+                sources,
+                current: 0,
+                sink,
+                is_stopped: true,
+            })
+        }
+    }
+
+    pub fn play(&mut self) {
+        self.sink.play();
+        self.is_stopped = false;
+    }
+
+    fn next_sink_if_need(&mut self) {
+        if !self.is_stopped && self.sink.empty() {
+            self.sink.stop();
+            self.current = (self.current + 1) % self.sources.len();
+            self.sources[self.current].reset_sink(&mut self.sink);
+            self.play();
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.next_sink_if_need();
+    }
+
+    pub fn pause(&mut self) {
+        self.next_sink_if_need();
+        self.sink.pause();
+    }
+
+    pub fn stop(&mut self) {
+        self.sink.stop();
+        self.current = 0;
+        self.is_stopped = true;
+    }
+}
 
 pub struct Stream {
-    sinks: Vec<Sink>,
+    playlists: Vec<Playlist>,
 }
 
 impl Stream {
-    pub fn new() -> Stream {
-        Stream { sinks: vec![] }
+    pub fn new(playlists: Vec<Playlist>) -> Stream {
+        Stream { playlists }
     }
 
-    pub fn from_synk(sink: Sink) -> Stream {
-        Stream { sinks: vec![sink] }
+    pub fn from_source(src: Box<dyn Opener + Send>) -> Stream {
+        let mut ostream = rodio::OutputStreamBuilder::open_default_stream().unwrap();
+        let pl = Playlist::new(&mut ostream, vec![SubStream::new(src)]).unwrap();
+        Stream {
+            playlists: vec![pl],
+        }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.sinks.len() == 0
+        self.playlists.len() == 0
     }
 
-    pub fn get_sinks(self) -> Vec<Sink> {
-        self.sinks
+    pub fn get_playlists(self) -> Vec<Playlist> {
+        self.playlists
     }
 
     pub fn merge(&mut self, other: Stream) {
-        let sinks = other.get_sinks();
-        for sink in sinks {
-            self.sinks.push(sink);
+        self.playlists.extend(other.playlists);
+    }
+
+    pub fn play(&mut self) {
+        for playlist in self.playlists.iter_mut() {
+            playlist.play();
         }
+    }
+
+    pub fn pause(&mut self) {
+        for playlist in self.playlists.iter_mut() {
+            playlist.pause();
+        }
+    }
+
+    pub fn stop(&mut self) {
+        for playlist in self.playlists.iter_mut() {
+            playlist.stop();
+        }
+    }
+
+    pub fn update(&mut self) {
+        for playlist in self.playlists.iter_mut() {
+            playlist.update();
+        }
+        std::thread::sleep(Duration::from_millis(50));
     }
 }

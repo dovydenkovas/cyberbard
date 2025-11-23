@@ -18,15 +18,14 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
-use crate::stream::Stream;
+use crate::storage::stream::{Playlist, Stream, SubStream};
 
 enum Command {
     Play,
     Pause,
-    Reset,
     Stop,
-    SetPosition(Duration),
     GetPosition,
+    SetStream(Stream),
 }
 
 enum Response {
@@ -45,17 +44,29 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new() -> Player {
+    pub fn new(mut stream: Stream) -> Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
         let (resp_tx, resp_rx): (Sender<Response>, Receiver<Response>) = mpsc::channel();
 
         let handle = thread::spawn(move || {
             loop {
+                stream.update();
                 match cmd_rx.try_recv() {
-                    Ok(Command::Play) => {}
+                    Ok(Command::Play) => stream.play(),
+
+                    Ok(Command::Pause) => stream.pause(),
+
+                    Ok(Command::Stop) => {
+                        stream.stop();
+                        stream.pause();
+                    }
+
+                    Ok(Command::SetStream(s)) => stream = s,
 
                     Ok(Command::GetPosition) => {
-                        resp_tx.send(Response::Position(Duration::from_millis(50)));
+                        resp_tx
+                            .send(Response::Position(Duration::from_millis(50)))
+                            .unwrap();
                     }
                     Err(mpsc::TryRecvError::Empty) => {
                         thread::sleep(Duration::from_millis(50));
@@ -75,9 +86,9 @@ impl Player {
         }
     }
 
-    pub fn set_stream(&self, stream: Stream) {}
-
-    pub fn get_stream(&self) -> Stream {}
+    pub fn set_stream(&mut self, stream: Stream) {
+        let _ = self.cmd_tx.send(Command::SetStream(stream));
+    }
 
     pub fn play(&mut self) {
         let _ = self.cmd_tx.send(Command::Play);
@@ -91,12 +102,8 @@ impl Player {
         self.paused
     }
 
-    pub fn reset(&mut self) {
-        let _ = self.cmd_tx.send(Command::Reset);
-    }
-
-    pub fn set_position(&mut self, pos: Duration) {
-        let _ = self.cmd_tx.send(Command::SetPosition(pos));
+    pub fn stop(&mut self) {
+        let _ = self.cmd_tx.send(Command::Stop);
     }
 
     pub fn get_position(&self) -> Duration {
@@ -107,41 +114,38 @@ impl Player {
         }
     }
 
-    pub fn get_volume(&self) -> u8 {}
+    pub fn get_volume(&self) -> u8 {
+        0
+    }
 
     pub fn set_volume(&mut self, vol: u8) {}
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let stream_handle = rodio::OutputStreamBuilder::open_default_stream()?;
-    let sink = rodio::Sink::connect_new(stream_handle.mixer());
-    let (controller, mixer) = rodio::mixer::mixer(2, 44_100);
+pub fn main() {
+    let src = crate::storage::localstorage::LocalOpener::new("music/b1.mp3".to_string());
+    let sss1 = SubStream::new(src);
 
-    println!("!!!");
-    let file = std::fs::File::open("music/necroTown.mp3")?;
-    controller.add(rodio::Decoder::try_from(file)?);
-    println!("!!!");
-    let file = std::fs::File::open("music/1.mp3")?;
-    controller.add(rodio::Decoder::try_from(file)?);
+    let src = crate::storage::localstorage::LocalOpener::new("music/b3.mp3".to_string());
+    let sss2 = SubStream::new(src);
 
-    println!("!!!");
-    sink.append(mixer);
+    let src = crate::storage::localstorage::LocalOpener::new("music/InfernoTown.mp3".to_string());
+    let sss3 = SubStream::new(src);
 
-    println!("!!!");
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    // sink.try_seek(Duration::from_secs(20))?;
-    sink.play();
+    let mut ostream = rodio::OutputStreamBuilder::open_default_stream().unwrap();
+    let pl1 = Playlist::new(&mut ostream, vec![sss1, sss2]).unwrap();
+    let pl2 = Playlist::new(&mut ostream, vec![sss3]).unwrap();
+    let mut s = Stream::new(vec![pl1, pl2]);
 
-    // std::thread::sleep(std::time::Duration::from_secs(2));
-    // sink.try_seek(Duration::from_secs(20))?;
+    let mut player = Player::new(s);
+    player.play();
+    println!("play");
+    thread::sleep(Duration::from_secs(5));
 
-    while !sink.empty() {
-        println!("{:?}", sink.get_pos());
-    }
+    player.stop();
+    println!("pause");
+    thread::sleep(Duration::from_secs(2));
 
-    // This doesn't do anything since the sound has ended already.
-    sink.try_seek(Duration::from_secs(5))?;
-    println!("seek example ended");
-
-    Ok(())
+    player.play();
+    println!("play");
+    thread::sleep(Duration::from_secs(5));
 }

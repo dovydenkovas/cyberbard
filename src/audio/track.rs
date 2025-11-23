@@ -96,7 +96,7 @@ mod tests {
     struct TestSource {}
     impl Source for TestSource {
         fn get_stream(&self) -> Stream {
-            Stream::new()
+            Stream::new(vec![])
         }
 
         fn get_title(&self) -> String {
