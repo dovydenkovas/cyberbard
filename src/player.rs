@@ -120,32 +120,3 @@ impl Player {
 
     pub fn set_volume(&mut self, vol: u8) {}
 }
-
-pub fn main() {
-    let src = crate::storage::localstorage::LocalOpener::new("music/b1.mp3".to_string());
-    let sss1 = SubStream::new(src);
-
-    let src = crate::storage::localstorage::LocalOpener::new("music/b3.mp3".to_string());
-    let sss2 = SubStream::new(src);
-
-    let src = crate::storage::localstorage::LocalOpener::new("music/InfernoTown.mp3".to_string());
-    let sss3 = SubStream::new(src);
-
-    let mut ostream = rodio::OutputStreamBuilder::open_default_stream().unwrap();
-    let pl1 = Playlist::new(&mut ostream, vec![sss1, sss2]).unwrap();
-    let pl2 = Playlist::new(&mut ostream, vec![sss3]).unwrap();
-    let mut s = Stream::new(vec![pl1, pl2]);
-
-    let mut player = Player::new(s);
-    player.play();
-    println!("play");
-    thread::sleep(Duration::from_secs(5));
-
-    player.stop();
-    println!("pause");
-    thread::sleep(Duration::from_secs(2));
-
-    player.play();
-    println!("play");
-    thread::sleep(Duration::from_secs(5));
-}

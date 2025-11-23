@@ -14,7 +14,11 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::sync::{Arc, Mutex};
+
 use egui::Ui;
+
+use crate::player::Player;
 
 pub struct PlayerWidget {
     title: String,
@@ -22,24 +26,34 @@ pub struct PlayerWidget {
     volume: f32,
     is_pause: bool,
     is_looped: bool,
+    player: Arc<Mutex<Player>>,
 }
 
 impl PlayerWidget {
-    pub fn new() -> PlayerWidget {
+    pub fn new(player: Arc<Mutex<Player>>) -> PlayerWidget {
         PlayerWidget {
             title: "The Shire".to_string(),
             progress: 0.6,
             volume: 100.0,
-            is_pause: false,
+            is_pause: true,
             is_looped: false,
+            player,
         }
     }
 
     fn toggle_pause(&mut self) {
         self.is_pause = !self.is_pause;
+        if self.is_pause {
+            self.player.lock().unwrap().pause();
+        } else {
+            self.player.lock().unwrap().play();
+        }
     }
 
-    fn reset(&mut self) {}
+    fn stop(&mut self) {
+        self.player.lock().unwrap().stop();
+        self.is_pause = true;
+    }
 
     fn toggle_looped(&mut self) {
         self.is_looped = !self.is_looped;
@@ -64,7 +78,7 @@ impl PlayerWidget {
             }
 
             if ui.button("⏹").clicked() {
-                self.reset();
+                self.stop();
             }
 
             let loop_btn = egui::Button::new("🔁").selected(self.is_looped);

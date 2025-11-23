@@ -14,6 +14,10 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::sync::{Arc, Mutex};
+
+use crate::player::Player;
+
 use super::map::MapWidget;
 use super::player::PlayerWidget;
 use super::settings::SettingsWidget;
@@ -30,11 +34,11 @@ pub struct Application {
 
 impl Application {
     /// Create main window struct
-    pub fn new() -> Application {
+    pub fn new(player: Arc<Mutex<Player>>) -> Application {
         Application {
             storage_widget: StoreWidget::new(),
             map_widget: MapWidget::new(),
-            player_widget: PlayerWidget::new(),
+            player_widget: PlayerWidget::new(player),
             settings_widget: SettingsWidget::new(),
         }
     }
@@ -64,11 +68,11 @@ impl eframe::App for Application {
     }
 }
 
-pub fn run_gui() {
+pub fn run_gui(player: Arc<Mutex<Player>>) {
     let options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
         "Cyberbard",
         options,
-        Box::new(|_cc| Ok(Box::new(Application::new()))),
+        Box::new(|_cc| Ok(Box::new(Application::new(player)))),
     );
 }

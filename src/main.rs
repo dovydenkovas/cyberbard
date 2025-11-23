@@ -14,6 +14,13 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::sync::{Arc, Mutex};
+
+use crate::{
+    player::Player,
+    storage::stream::{Playlist, Stream, SubStream},
+};
+
 mod audio;
 mod gui;
 mod player;
@@ -22,6 +29,22 @@ mod storage;
 /// Application entry point.
 /// Initialize all structures and start player and application threads.
 fn main() {
-    player::main();
-    // gui::window::run_gui();
+    let src = crate::storage::localstorage::LocalOpener::new("music/b1.mp3".to_string());
+    let sss1 = SubStream::new(src);
+
+    let src = crate::storage::localstorage::LocalOpener::new("music/b3.mp3".to_string());
+    let sss2 = SubStream::new(src);
+
+    let src = crate::storage::localstorage::LocalOpener::new("music/InfernoTown.mp3".to_string());
+    let sss3 = SubStream::new(src);
+
+    let mut ostream = rodio::OutputStreamBuilder::open_default_stream().unwrap();
+    let pl1 = Playlist::new(&mut ostream, vec![sss1, sss2]).unwrap();
+    let pl2 = Playlist::new(&mut ostream, vec![sss3]).unwrap();
+    let mut s = Stream::new(vec![pl1, pl2]);
+
+    let mut player = Player::new(s);
+
+    let mut player = Arc::new(Mutex::new(player));
+    gui::window::run_gui(Arc::clone(&player));
 }
