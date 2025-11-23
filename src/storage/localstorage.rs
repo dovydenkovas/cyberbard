@@ -14,6 +14,11 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::path::Path;
+
+use crate::storage::source::Source;
+use crate::storage::stream::Stream;
+
 use super::storage::Storage;
 use super::stream::Opener;
 use walkdir::WalkDir;
@@ -28,11 +33,7 @@ pub struct LocalStorage {
 }
 
 fn is_music_file(filename: &str) -> bool {
-    false
-}
-
-fn open_source(filename: &str) -> Option<BSource> {
-    None
+    return filename.ends_with(".mp3") || filename.ends_with(".MP3") || filename.ends_with(".ogg");
 }
 
 impl LocalStorage {
@@ -52,12 +53,9 @@ impl Storage for LocalStorage {
         for entry in WalkDir::new(self.storage_path.clone()) {
             match entry {
                 Ok(dir_entry) => {
-                    let filename = dir_entry.path().to_str().unwrap();
-                    if is_music_file(filename) {
-                        match open_source(filename) {
-                            Some(s) => sources.push(s),
-                            None => (),
-                        }
+                    let filename = dir_entry.path().to_string_lossy().to_string();
+                    if is_music_file(&filename) {
+                        sources.push(LocalSource::new(filename));
                     }
                 }
                 Err(_) => (),
@@ -91,19 +89,37 @@ impl Storage for LocalStorage {
     }
 }
 
-struct LocalSource {}
+#[derive(Clone)]
+pub struct LocalSource {
+    filename: String,
+    title: String,
+}
+
+impl LocalSource {
+    pub fn new(filename: String) -> Box<dyn Source> {
+        let title = Path::new(&filename)
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .chars()
+            .take(50)
+            .collect();
+
+        Box::new(LocalSource { filename, title })
+    }
+}
 
 impl super::source::Source for LocalSource {
     fn get_stream(&self) -> super::stream::Stream {
-        todo!()
+        Stream::from_source(LocalOpener::new(self.filename.clone()))
     }
 
     fn get_title(&self) -> String {
-        todo!()
+        self.title.clone()
     }
 
-    fn clone_box(&self) -> BSource {
-        todo!()
+    fn clone_box(&self) -> Box<dyn Source> {
+        Box::new(self.clone())
     }
 }
 

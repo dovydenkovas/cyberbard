@@ -16,7 +16,13 @@
 
 use rodio::Sink;
 use rodio::{OutputStream, Source};
+use std::sync::Mutex;
 use std::time::Duration;
+
+lazy_static::lazy_static! {
+static ref OSTREAM: Mutex<rodio::OutputStream> =
+    Mutex::new(rodio::OutputStreamBuilder::open_default_stream().unwrap());
+}
 
 pub trait Opener {
     fn source(&self) -> Box<dyn Source + Send>;
@@ -86,6 +92,7 @@ impl Playlist {
 
     pub fn stop(&mut self) {
         self.sink.stop();
+        self.sink.clear();
         self.current = 0;
         self.is_stopped = true;
     }
@@ -101,8 +108,7 @@ impl Stream {
     }
 
     pub fn from_source(src: Box<dyn Opener + Send>) -> Stream {
-        let mut ostream = rodio::OutputStreamBuilder::open_default_stream().unwrap();
-        let pl = Playlist::new(&mut ostream, vec![SubStream::new(src)]).unwrap();
+        let pl = Playlist::new(&mut OSTREAM.lock().unwrap(), vec![SubStream::new(src)]).unwrap();
         Stream {
             playlists: vec![pl],
         }
@@ -142,6 +148,6 @@ impl Stream {
         for playlist in self.playlists.iter_mut() {
             playlist.update();
         }
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(5));
     }
 }

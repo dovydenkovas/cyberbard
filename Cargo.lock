@@ -891,6 +891,7 @@ dependencies = [
  "egui 0.33.0",
  "egui_alignments",
  "image",
+ "lazy_static",
  "rodio",
  "serde",
  "walkdir",

@@ -14,19 +14,22 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
 use crate::player::Player;
+use crate::storage::storage::Storage;
+use crate::storage::stream::Stream;
 
 use super::map::MapWidget;
 use super::player::PlayerWidget;
 use super::settings::SettingsWidget;
-use super::storage::StoreWidget;
+use super::storage::StorageWidget;
 
 /// Describe Cyberbard main window.
 /// Create and update all widgets and connect to core application.
 pub struct Application {
-    storage_widget: StoreWidget,
+    storage_widget: StorageWidget,
     map_widget: MapWidget,
     player_widget: PlayerWidget,
     settings_widget: SettingsWidget,
@@ -34,11 +37,16 @@ pub struct Application {
 
 impl Application {
     /// Create main window struct
-    pub fn new(player: Arc<Mutex<Player>>) -> Application {
+    pub fn new(storage: Arc<Mutex<dyn Storage>>, player: Arc<Mutex<Player>>) -> Application {
+        let (storage2player_tx, storage2player_rx): (
+            Sender<(String, Stream)>,
+            Receiver<(String, Stream)>,
+        ) = mpsc::channel();
+
         Application {
-            storage_widget: StoreWidget::new(),
+            storage_widget: StorageWidget::new(storage, storage2player_tx),
             map_widget: MapWidget::new(),
-            player_widget: PlayerWidget::new(player),
+            player_widget: PlayerWidget::new(player, storage2player_rx),
             settings_widget: SettingsWidget::new(),
         }
     }
@@ -68,11 +76,11 @@ impl eframe::App for Application {
     }
 }
 
-pub fn run_gui(player: Arc<Mutex<Player>>) {
+pub fn run_gui(storage: Arc<Mutex<dyn Storage>>, player: Arc<Mutex<Player>>) {
     let options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
         "Cyberbard",
         options,
-        Box::new(|_cc| Ok(Box::new(Application::new(player)))),
+        Box::new(|_cc| Ok(Box::new(Application::new(storage, player)))),
     );
 }

@@ -14,44 +14,57 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::sync::{Arc, Mutex, mpsc::Sender};
+
 use egui::{Label, Ui};
 
+use crate::storage::{storage::Storage, stream::Stream};
+
 struct Music {
+    index: usize,
     title: String,
     tags: Vec<String>,
 }
 
 impl Music {
-    fn new(title: &str, tags: Vec<&str>) -> Music {
+    fn new(index: usize, title: String, tags: Vec<String>) -> Music {
         Music {
+            index,
             title: title.to_string(),
             tags: tags.iter().map(|x| x.to_string()).collect(),
         }
     }
 }
 
-pub struct StoreWidget {
+pub struct StorageWidget {
     title: String,
     search_pattern: String,
     music: Vec<Music>,
+    storage: Arc<Mutex<dyn Storage>>,
+    storage2player_tx: Sender<(String, Stream)>,
 }
 
-impl StoreWidget {
-    pub fn new() -> StoreWidget {
-        StoreWidget {
+impl StorageWidget {
+    pub fn new(
+        storage: Arc<Mutex<dyn Storage>>,
+        storage2player_tx: Sender<(String, Stream)>,
+    ) -> StorageWidget {
+        let mut music = vec![];
+        let n = storage.lock().unwrap().len();
+        for i in 0..n {
+            music.push(Music::new(
+                i,
+                storage.lock().unwrap().get(i).unwrap().get_title(),
+                vec![],
+            ));
+        }
+
+        StorageWidget {
             title: "Властелин Колец".to_string(),
             search_pattern: "".to_string(),
-            music: vec![
-                Music::new("The Shire", vec!["music"]),
-                Music::new("Concerning Hobbits", vec!["music"]),
-                Music::new("The Breaking of the Fellowship", vec!["music", "sad"]),
-                Music::new("Lothlórien", vec!["music"]),
-                Music::new("A Hobbit's Tale", vec!["music", "heroic"]),
-                Music::new("Into the West", vec!["music"]),
-                Music::new("Fire", vec!["sound"]),
-                Music::new("Rain", vec!["sound"]),
-                Music::new("Wind", vec!["sound"]),
-            ],
+            music,
+            storage,
+            storage2player_tx,
         }
     }
 
@@ -67,8 +80,15 @@ impl StoreWidget {
         println!("Search for {}", self.search_pattern)
     }
 
-    fn send_source_to_player(source: &Music) {
-        println!("Send to player {}", source.title)
+    fn send_source_to_player(&self, source: &Music) {
+        let stream = self
+            .storage
+            .lock()
+            .unwrap()
+            .get(source.index)
+            .unwrap()
+            .get_stream();
+        let _ = self.storage2player_tx.send((source.title.clone(), stream));
     }
 
     fn send_source_to_map(source: &Music) {
@@ -109,10 +129,10 @@ impl StoreWidget {
                         ui.label(&source.title);
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui.button("+".to_string()).clicked() {
-                                StoreWidget::send_source_to_map(source);
+                                StorageWidget::send_source_to_map(source);
                             }
                             if ui.button("♫".to_string()).clicked() {
-                                StoreWidget::send_source_to_player(source);
+                                self.send_source_to_player(source);
                             }
 
                             for tag in &source.tags {

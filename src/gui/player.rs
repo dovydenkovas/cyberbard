@@ -14,11 +14,11 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Receiver};
 
 use egui::Ui;
 
-use crate::player::Player;
+use crate::{player::Player, storage::stream::Stream};
 
 pub struct PlayerWidget {
     title: String,
@@ -27,10 +27,14 @@ pub struct PlayerWidget {
     is_pause: bool,
     is_looped: bool,
     player: Arc<Mutex<Player>>,
+    storage2player_rx: Receiver<(String, Stream)>,
 }
 
 impl PlayerWidget {
-    pub fn new(player: Arc<Mutex<Player>>) -> PlayerWidget {
+    pub fn new(
+        player: Arc<Mutex<Player>>,
+        storage2player_rx: Receiver<(String, Stream)>,
+    ) -> PlayerWidget {
         PlayerWidget {
             title: "The Shire".to_string(),
             progress: 0.6,
@@ -38,6 +42,7 @@ impl PlayerWidget {
             is_pause: true,
             is_looped: false,
             player,
+            storage2player_rx,
         }
     }
 
@@ -59,7 +64,21 @@ impl PlayerWidget {
         self.is_looped = !self.is_looped;
     }
 
+    fn check_events(&mut self) {
+        match self.storage2player_rx.try_recv() {
+            Ok((title, stream)) => {
+                self.title = title;
+                self.player.lock().unwrap().set_stream(stream);
+                self.player.lock().unwrap().play();
+                self.is_pause = false;
+            }
+            Err(_) => (),
+        }
+    }
+
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
+        self.check_events();
+
         ui.add_space(20.0);
         ui.vertical_centered(|ui| {
             ui.heading(&self.title);

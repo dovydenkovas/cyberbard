@@ -14,6 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::hash::Hash;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -44,35 +45,56 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(mut stream: Stream) -> Player {
+    pub fn new() -> Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
         let (resp_tx, resp_rx): (Sender<Response>, Receiver<Response>) = mpsc::channel();
 
         let handle = thread::spawn(move || {
+            let mut opt_stream: Option<Stream> = None;
             loop {
-                stream.update();
-                match cmd_rx.try_recv() {
-                    Ok(Command::Play) => stream.play(),
+                match &mut opt_stream {
+                    None => match cmd_rx.try_recv() {
+                        Ok(Command::SetStream(s)) => opt_stream = Some(s),
 
-                    Ok(Command::Pause) => stream.pause(),
+                        Ok(Command::GetPosition) => {
+                            resp_tx
+                                .send(Response::Position(Duration::from_millis(50)))
+                                .unwrap();
+                        }
+                        Ok(_) => (),
+                        Err(mpsc::TryRecvError::Empty) => {
+                            thread::sleep(Duration::from_millis(50));
+                        }
+                        Err(mpsc::TryRecvError::Disconnected) => {
+                            break;
+                        }
+                    },
+                    Some(stream) => {
+                        stream.update();
+                        match cmd_rx.try_recv() {
+                            Ok(Command::Play) => stream.play(),
 
-                    Ok(Command::Stop) => {
-                        stream.stop();
-                        stream.pause();
-                    }
+                            Ok(Command::Pause) => stream.pause(),
 
-                    Ok(Command::SetStream(s)) => stream = s,
+                            Ok(Command::Stop) => {
+                                stream.stop();
+                                stream.pause();
+                            }
 
-                    Ok(Command::GetPosition) => {
-                        resp_tx
-                            .send(Response::Position(Duration::from_millis(50)))
-                            .unwrap();
-                    }
-                    Err(mpsc::TryRecvError::Empty) => {
-                        thread::sleep(Duration::from_millis(50));
-                    }
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        break;
+                            Ok(Command::SetStream(s)) => opt_stream = Some(s),
+
+                            Ok(Command::GetPosition) => {
+                                resp_tx
+                                    .send(Response::Position(Duration::from_millis(50)))
+                                    .unwrap();
+                            }
+                            Err(mpsc::TryRecvError::Empty) => {
+                                thread::sleep(Duration::from_millis(50));
+                            }
+                            Err(mpsc::TryRecvError::Disconnected) => {
+                                break;
+                            }
+                        }
                     }
                 }
             }
