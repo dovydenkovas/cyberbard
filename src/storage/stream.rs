@@ -25,7 +25,8 @@ static ref OSTREAM: Mutex<rodio::OutputStream> =
 }
 
 pub trait Opener {
-    fn source(&self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>>;
+    fn source(&mut self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>>;
+    fn total_duration(&self) -> f32;
 }
 
 pub struct SubStream {
@@ -37,11 +38,15 @@ impl SubStream {
         SubStream { source }
     }
 
-    pub fn reset_sink(&self, sink: &mut Sink) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn reset_sink(&mut self, sink: &mut Sink) -> Result<(), Box<dyn std::error::Error>> {
         let source = self.source.source()?;
         sink.clear();
         sink.append(source);
         Ok(())
+    }
+
+    pub fn total_duration(&self) -> f32 {
+        self.source.total_duration()
     }
 }
 
@@ -53,7 +58,7 @@ pub struct Playlist {
 }
 
 impl Playlist {
-    pub fn new(ostream: &mut OutputStream, sources: Vec<SubStream>) -> Option<Playlist> {
+    pub fn new(ostream: &mut OutputStream, mut sources: Vec<SubStream>) -> Option<Playlist> {
         if sources.len() == 0 {
             None
         } else {
@@ -96,6 +101,14 @@ impl Playlist {
         self.sink.clear();
         self.current = 0;
         self.is_stopped = true;
+    }
+
+    pub fn get_position(&self) -> f32 {
+        self.sink.get_pos().as_secs_f32() / self.sources[self.current].total_duration()
+    }
+
+    pub fn set_volume(&mut self, vol: f32) {
+        self.sink.set_volume(vol);
     }
 }
 
@@ -142,6 +155,19 @@ impl Stream {
     pub fn stop(&mut self) {
         for playlist in self.playlists.iter_mut() {
             playlist.stop();
+        }
+    }
+
+    pub fn get_position(&self) -> f32 {
+        match self.playlists.get(0) {
+            Some(pl) => pl.get_position(),
+            None => 0.0,
+        }
+    }
+
+    pub fn set_volume(&mut self, vol: f32) {
+        for pl in &mut self.playlists {
+            pl.set_volume(vol);
         }
     }
 

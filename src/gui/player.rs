@@ -14,7 +14,11 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::sync::{Arc, Mutex, mpsc::Receiver};
+use std::{
+    sync::{Arc, Mutex, mpsc::Receiver},
+    thread::sleep,
+    time::Duration,
+};
 
 use egui::Ui;
 
@@ -22,10 +26,9 @@ use crate::{player::Player, storage::stream::Stream};
 
 pub struct PlayerWidget {
     title: String,
-    progress: f32,
+    progress: Arc<Mutex<f32>>,
     volume: f32,
     is_pause: bool,
-    is_looped: bool,
     player: Arc<Mutex<Player>>,
     storage2player_rx: Receiver<(String, Stream)>,
 }
@@ -35,15 +38,28 @@ impl PlayerWidget {
         player: Arc<Mutex<Player>>,
         storage2player_rx: Receiver<(String, Stream)>,
     ) -> PlayerWidget {
-        PlayerWidget {
-            title: "The Shire".to_string(),
-            progress: 0.6,
-            volume: 100.0,
+        let pos_player = Arc::clone(&player);
+
+        let progress = Arc::new(Mutex::new(0.0));
+        let pos_progress = Arc::clone(&progress);
+
+        let widget = PlayerWidget {
+            title: "".to_string(),
+            progress,
+            volume: 1.0,
             is_pause: true,
-            is_looped: false,
             player,
             storage2player_rx,
-        }
+        };
+
+        std::thread::spawn(move || {
+            loop {
+                *pos_progress.lock().unwrap() = pos_player.lock().unwrap().get_position();
+                sleep(Duration::from_millis(50));
+            }
+        });
+
+        widget
     }
 
     fn toggle_pause(&mut self) {
@@ -60,10 +76,6 @@ impl PlayerWidget {
         self.is_pause = true;
     }
 
-    fn toggle_looped(&mut self) {
-        self.is_looped = !self.is_looped;
-    }
-
     fn check_events(&mut self) {
         match self.storage2player_rx.try_recv() {
             Ok((title, stream)) => {
@@ -76,7 +88,12 @@ impl PlayerWidget {
         }
     }
 
-    pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
+    fn set_volume(&mut self) {
+        self.player.lock().unwrap().set_volume(self.volume);
+    }
+
+    pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+        ctx.request_repaint_after(Duration::from_millis(50));
         self.check_events();
 
         ui.add_space(20.0);
@@ -85,7 +102,8 @@ impl PlayerWidget {
         });
 
         ui.add_space(20.0);
-        let progress_bar = egui::ProgressBar::new(self.progress).desired_height(4.0);
+        let progress_bar =
+            egui::ProgressBar::new(*self.progress.lock().unwrap()).desired_height(4.0);
         ui.add(progress_bar);
         ui.add_space(10.0);
 
@@ -100,12 +118,12 @@ impl PlayerWidget {
                 self.stop();
             }
 
-            let loop_btn = egui::Button::new("🔁").selected(self.is_looped);
-            if ui.add(loop_btn).clicked() {
-                self.toggle_looped();
-            }
-
-            ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).show_value(false));
+            if ui
+                .add(egui::Slider::new(&mut self.volume, 0.0..=1.0).show_value(false))
+                .changed()
+            {
+                self.set_volume();
+            };
         });
         ui.add_space(10.0);
     }

@@ -16,12 +16,12 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::storage::source::Source;
 use crate::storage::storage::StorageCredentials;
 use crate::storage::stream::Stream;
 
 use super::storage::Storage;
 use super::stream::Opener;
+use rodio::Source;
 use walkdir::WalkDir;
 
 type BSource = Box<dyn super::source::Source>;
@@ -119,7 +119,7 @@ pub struct LocalSource {
 }
 
 impl LocalSource {
-    pub fn new(filename: String) -> Box<dyn Source> {
+    pub fn new(filename: String) -> Box<dyn crate::storage::source::Source> {
         let title = Path::new(&filename)
             .file_stem()
             .unwrap()
@@ -141,25 +141,35 @@ impl super::source::Source for LocalSource {
         self.title.clone()
     }
 
-    fn clone_box(&self) -> Box<dyn Source> {
+    fn clone_box(&self) -> Box<dyn crate::storage::source::Source> {
         Box::new(self.clone())
     }
 }
 
 pub struct LocalOpener {
     filename: String,
+    duration: f32,
 }
 
 impl LocalOpener {
     pub fn new(filename: String) -> Box<dyn Opener + Send> {
-        Box::new(LocalOpener { filename })
+        Box::new(LocalOpener {
+            filename,
+            duration: 0.0,
+        })
     }
 }
 
 impl Opener for LocalOpener {
-    fn source(&self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>> {
+    fn source(&mut self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>> {
         let file = std::fs::File::open(&self.filename)?;
-        Ok(Box::new(rodio::Decoder::try_from(file)?))
+        let decoder = rodio::Decoder::try_from(file)?;
+        self.duration = decoder.total_duration().unwrap_or_default().as_secs_f32();
+        Ok(Box::new(decoder))
+    }
+
+    fn total_duration(&self) -> f32 {
+        self.duration
     }
 }
 

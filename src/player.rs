@@ -19,7 +19,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
-use crate::storage::stream::{Playlist, Stream, SubStream};
+use crate::storage::stream::{self, Playlist, Stream, SubStream};
 
 enum Command {
     Play,
@@ -27,10 +27,11 @@ enum Command {
     Stop,
     GetPosition,
     SetStream(Stream),
+    SetVolume(f32),
 }
 
 enum Response {
-    Position(Duration),
+    Position(f32),
     // Ok,
     // Err
 }
@@ -57,9 +58,7 @@ impl Player {
                         Ok(Command::SetStream(s)) => opt_stream = Some(s),
 
                         Ok(Command::GetPosition) => {
-                            resp_tx
-                                .send(Response::Position(Duration::from_millis(50)))
-                                .unwrap();
+                            resp_tx.send(Response::Position(0.0)).unwrap();
                         }
                         Ok(_) => (),
                         Err(mpsc::TryRecvError::Empty) => {
@@ -85,8 +84,11 @@ impl Player {
 
                             Ok(Command::GetPosition) => {
                                 resp_tx
-                                    .send(Response::Position(Duration::from_millis(50)))
+                                    .send(Response::Position(stream.get_position()))
                                     .unwrap();
+                            }
+                            Ok(Command::SetVolume(vol)) => {
+                                stream.set_volume(vol);
                             }
                             Err(mpsc::TryRecvError::Empty) => {
                                 thread::sleep(Duration::from_millis(50));
@@ -128,17 +130,21 @@ impl Player {
         let _ = self.cmd_tx.send(Command::Stop);
     }
 
-    pub fn get_position(&self) -> Duration {
+    pub fn get_position(&self) -> f32 {
         let _ = self.cmd_tx.send(Command::GetPosition);
         match self.resp_rx.recv() {
-            Err(_) => Duration::from_millis(0),
+            Err(_) => 0.0,
             Ok(Response::Position(pos)) => pos,
         }
     }
 
-    pub fn get_volume(&self) -> u8 {
-        0
+    pub fn set_volume(&mut self, vol: f32) {
+        let _ = self.cmd_tx.send(Command::SetVolume(vol));
     }
+}
 
-    pub fn set_volume(&mut self, vol: u8) {}
+impl Default for Player {
+    fn default() -> Self {
+        Self::new()
+    }
 }
