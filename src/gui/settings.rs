@@ -70,13 +70,13 @@ impl SettingsWidget {
         });
 
         // todo
-        ui.horizontal(|ui| {
-            let mut scalar = 0.0;
-            ui.label("Громкость");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
-            });
-        });
+        // ui.horizontal(|ui| {
+        //     let mut scalar = 0.0;
+        //     ui.label("Громкость");
+        //     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        //         ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
+        //     });
+        // });
 
         ui.add_space(20.0);
         ui.vertical_centered(|ui| {
@@ -99,11 +99,11 @@ impl SettingsWidget {
                 let mut scalar = 0.0;
                 ui.label(audio.get_title());
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.small("🗙");
-                    ui.button("🔁");
-                    ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
-                });
+                // ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                //     ui.small("🗙");
+                //     ui.button("🔁");
+                //     ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
+                // });
             });
             ui.add_space(5.0);
         }

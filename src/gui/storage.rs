@@ -137,9 +137,9 @@ impl StorageWidget {
             if ui.button("🗁".to_string()).clicked() {
                 self.open_project()
             };
-            if ui.button("💾".to_string()).clicked() {
-                self.save_project()
-            };
+            // if ui.button("💾".to_string()).clicked() {
+            //     self.save_project()
+            // };
             ui.vertical_centered(|ui| {
                 ui.heading(&self.caption);
             });
