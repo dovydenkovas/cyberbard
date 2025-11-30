@@ -17,8 +17,12 @@
 use std::sync::{Arc, Mutex, mpsc::Sender};
 
 use egui::{Label, Ui};
+use rfd::FileDialog;
 
-use crate::storage::{storage::Storage, stream::Stream};
+use crate::storage::{
+    storage::{Storage, StorageCredentials},
+    stream::Stream,
+};
 
 struct Music {
     shown: bool,
@@ -51,29 +55,45 @@ impl StorageWidget {
         storage: Arc<Mutex<dyn Storage>>,
         storage2player_tx: Sender<(String, Stream)>,
     ) -> StorageWidget {
-        let mut music = vec![];
-        let n = storage.lock().unwrap().len();
+        let mut widget = StorageWidget {
+            caption: "".to_string(),
+            search_pattern: "".to_string(),
+            music: vec![],
+            storage,
+            storage2player_tx,
+        };
+        widget.sync_with_storage();
+        widget
+    }
+
+    fn sync_with_storage(&mut self) {
+        self.music.clear();
+        let n = self.storage.lock().unwrap().len();
         for i in 0..n {
-            music.push(Music::new(
+            self.music.push(Music::new(
                 true,
                 i,
-                storage.lock().unwrap().get(i).unwrap().get_title(),
+                self.storage.lock().unwrap().get(i).unwrap().get_title(),
                 vec![],
             ));
         }
-        let caption = storage.lock().unwrap().get_caption();
-
-        StorageWidget {
-            caption,
-            search_pattern: "".to_string(),
-            music,
-            storage,
-            storage2player_tx,
-        }
+        self.caption = self.storage.lock().unwrap().get_caption();
+        self.search();
     }
 
     fn open_project(&mut self) {
-        println!("Open project")
+        println!("Open project");
+        let path = FileDialog::new()
+            .set_title("Выбор каталога с музыкой и файлами игры")
+            .pick_folder();
+
+        if let Some(path) = path {
+            self.storage
+                .lock()
+                .unwrap()
+                .setup_storage(StorageCredentials::Local { path });
+        }
+        self.sync_with_storage();
     }
 
     fn save_project(&self) {

@@ -14,8 +14,8 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use rodio::OutputStream;
 use rodio::Sink;
-use rodio::{OutputStream, Source};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -25,7 +25,7 @@ static ref OSTREAM: Mutex<rodio::OutputStream> =
 }
 
 pub trait Opener {
-    fn source(&self) -> Box<dyn Source + Send>;
+    fn source(&self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>>;
 }
 
 pub struct SubStream {
@@ -37,10 +37,11 @@ impl SubStream {
         SubStream { source }
     }
 
-    pub fn reset_sink(&self, sink: &mut Sink) {
-        let source = self.source.source();
+    pub fn reset_sink(&self, sink: &mut Sink) -> Result<(), Box<dyn std::error::Error>> {
+        let source = self.source.source()?;
         sink.clear();
         sink.append(source);
+        Ok(())
     }
 }
 

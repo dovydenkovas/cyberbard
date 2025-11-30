@@ -14,13 +14,20 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::path::PathBuf;
+
 use super::source::Source;
+
+pub enum StorageCredentials {
+    Local { path: PathBuf },
+}
 
 /// Storage trait describe interface to audio sources manipulation.
 pub trait Storage {
     fn get_caption(&self) -> String;
     fn set_caption(&mut self, new_caption: String);
     fn load_sources(&mut self);
+    fn setup_storage(&mut self, cred: StorageCredentials);
     fn get(&self, index: usize) -> Option<Box<dyn Source>>;
     fn len(&self) -> usize;
     fn attach_tag(&mut self, index: usize, title: String);

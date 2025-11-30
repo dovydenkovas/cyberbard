@@ -14,9 +14,10 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::storage::source::Source;
+use crate::storage::storage::StorageCredentials;
 use crate::storage::stream::Stream;
 
 use super::storage::Storage;
@@ -28,19 +29,22 @@ type BSource = Box<dyn super::source::Source>;
 /// Storage of audio sources, that read audio files from local disk.
 /// Open stream from .mp3, .ogg and so on files.
 pub struct LocalStorage {
-    storage_path: String,
+    storage_path: PathBuf,
     caption: String,
     sources: Vec<BSource>,
 }
 
 fn is_music_file(filename: &str) -> bool {
-    return filename.ends_with(".mp3") || filename.ends_with(".MP3") || filename.ends_with(".ogg");
+    filename.ends_with(".mp3")
+        || filename.ends_with(".MP3")
+        || filename.ends_with(".ogg")
+        || filename.ends_with(".flac")
 }
 
 impl LocalStorage {
     pub fn new(storage_path: String) -> LocalStorage {
         let mut storage = LocalStorage {
-            storage_path: storage_path.clone(),
+            storage_path: PathBuf::from(&storage_path),
             caption: storage_path,
             sources: vec![],
         };
@@ -97,6 +101,15 @@ impl Storage for LocalStorage {
     fn set_caption(&mut self, new_caption: String) {
         self.caption = new_caption
     }
+
+    fn setup_storage(&mut self, cred: StorageCredentials) {
+        match cred {
+            StorageCredentials::Local { path } => {
+                self.storage_path = path;
+                self.load_sources();
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -144,9 +157,9 @@ impl LocalOpener {
 }
 
 impl Opener for LocalOpener {
-    fn source(&self) -> Box<dyn rodio::Source + Send> {
-        let file = std::fs::File::open(&self.filename).unwrap();
-        Box::new(rodio::Decoder::try_from(file).unwrap())
+    fn source(&self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>> {
+        let file = std::fs::File::open(&self.filename)?;
+        Ok(Box::new(rodio::Decoder::try_from(file)?))
     }
 }
 
