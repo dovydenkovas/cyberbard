@@ -18,6 +18,8 @@ use super::source::Source;
 
 /// Storage trait describe interface to audio sources manipulation.
 pub trait Storage {
+    fn get_caption(&self) -> String;
+    fn set_caption(&mut self, new_caption: String);
     fn load_sources(&mut self);
     fn get(&self, index: usize) -> Option<Box<dyn Source>>;
     fn len(&self) -> usize;

@@ -21,14 +21,16 @@ use egui::{Label, Ui};
 use crate::storage::{storage::Storage, stream::Stream};
 
 struct Music {
+    shown: bool,
     index: usize,
     title: String,
     tags: Vec<String>,
 }
 
 impl Music {
-    fn new(index: usize, title: String, tags: Vec<String>) -> Music {
+    fn new(shown: bool, index: usize, title: String, tags: Vec<String>) -> Music {
         Music {
+            shown,
             index,
             title: title.to_string(),
             tags: tags.iter().map(|x| x.to_string()).collect(),
@@ -37,7 +39,7 @@ impl Music {
 }
 
 pub struct StorageWidget {
-    title: String,
+    caption: String,
     search_pattern: String,
     music: Vec<Music>,
     storage: Arc<Mutex<dyn Storage>>,
@@ -53,14 +55,16 @@ impl StorageWidget {
         let n = storage.lock().unwrap().len();
         for i in 0..n {
             music.push(Music::new(
+                true,
                 i,
                 storage.lock().unwrap().get(i).unwrap().get_title(),
                 vec![],
             ));
         }
+        let caption = storage.lock().unwrap().get_caption();
 
         StorageWidget {
-            title: "Властелин Колец".to_string(),
+            caption,
             search_pattern: "".to_string(),
             music,
             storage,
@@ -77,7 +81,11 @@ impl StorageWidget {
     }
 
     fn search(&mut self) {
-        println!("Search for {}", self.search_pattern)
+        let pattern = self.search_pattern.as_str();
+        for source in &mut self.music {
+            source.shown = source.title.contains(pattern)
+                || source.tags.iter().any(|tag| tag.contains(pattern));
+        }
     }
 
     fn send_source_to_player(&self, source: &Music) {
@@ -105,19 +113,19 @@ impl StorageWidget {
                 self.save_project()
             };
             ui.vertical_centered(|ui| {
-                ui.heading(&self.title);
+                ui.heading(&self.caption);
             });
         });
 
         ui.add_space(10.0);
         ui.separator();
         ui.horizontal(|ui| {
-            if ui.button("🔎".to_string()).clicked() {
-                self.search();
-            };
+            ui.label("🔎".to_string());
             let search =
                 egui::TextEdit::singleline(&mut self.search_pattern).hint_text("Название или тег");
-            ui.add(search);
+            if ui.add(search).changed() {
+                self.search();
+            }
         });
 
         ui.add_space(10.0);
@@ -125,30 +133,36 @@ impl StorageWidget {
             .auto_shrink(false)
             .show(ui, |ui| {
                 for source in &self.music {
-                    ui.horizontal(|ui| {
-                        ui.label(&source.title);
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("+".to_string()).clicked() {
-                                StorageWidget::send_source_to_map(source);
-                            }
-                            if ui.button("♫".to_string()).clicked() {
-                                self.send_source_to_player(source);
-                            }
-
-                            for tag in &source.tags {
-                                let frame = egui::Frame::new()
-                                    .fill(egui::Color32::from_rgb(0, 40, 0))
-                                    .corner_radius(5)
-                                    .inner_margin(egui::Margin::same(2));
-
-                                frame.show(ui, |ui| {
-                                    ui.add(Label::new(tag));
-                                });
-                            }
-                        });
-                    });
-                    ui.add_space(3.0);
+                    if source.shown {
+                        self.render_music(ui, source);
+                    }
                 }
             });
+    }
+
+    fn render_music(&self, ui: &mut Ui, source: &Music) {
+        ui.horizontal(|ui| {
+            ui.label(&source.title);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("+".to_string()).clicked() {
+                    StorageWidget::send_source_to_map(source);
+                }
+                if ui.button("♫".to_string()).clicked() {
+                    self.send_source_to_player(source);
+                }
+
+                for tag in &source.tags {
+                    let frame = egui::Frame::new()
+                        .fill(egui::Color32::from_rgb(0, 40, 0))
+                        .corner_radius(5)
+                        .inner_margin(egui::Margin::same(2));
+
+                    frame.show(ui, |ui| {
+                        ui.add(Label::new(tag));
+                    });
+                }
+            });
+        });
+        ui.add_space(3.0);
     }
 }

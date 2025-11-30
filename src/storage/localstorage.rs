@@ -29,6 +29,7 @@ type BSource = Box<dyn super::source::Source>;
 /// Open stream from .mp3, .ogg and so on files.
 pub struct LocalStorage {
     storage_path: String,
+    caption: String,
     sources: Vec<BSource>,
 }
 
@@ -39,7 +40,8 @@ fn is_music_file(filename: &str) -> bool {
 impl LocalStorage {
     pub fn new(storage_path: String) -> LocalStorage {
         let mut storage = LocalStorage {
-            storage_path,
+            storage_path: storage_path.clone(),
+            caption: storage_path,
             sources: vec![],
         };
         storage.load_sources();
@@ -86,6 +88,14 @@ impl Storage for LocalStorage {
 
     fn find_by_title(&self, substr: String) -> Vec<usize> {
         todo!()
+    }
+
+    fn get_caption(&self) -> String {
+        self.caption.clone()
+    }
+
+    fn set_caption(&mut self, new_caption: String) {
+        self.caption = new_caption
     }
 }
 
