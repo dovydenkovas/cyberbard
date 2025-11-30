@@ -14,37 +14,67 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use egui::Ui;
+use std::sync::{Arc, Mutex, mpsc::Receiver};
+
+use egui::{Ui, warn_if_debug_build};
+
+use crate::audio::audio::Audio;
 
 pub struct SettingsWidget {
     title: String,
+    audio: Option<Arc<Mutex<dyn Audio>>>,
+    map2settings_rx: Receiver<Arc<Mutex<dyn Audio>>>,
+    storage2settings_rx: Receiver<Box<dyn Audio>>,
 }
-
 impl SettingsWidget {
-    pub fn new() -> SettingsWidget {
+    pub fn new(
+        map2settings_rx: Receiver<Arc<Mutex<dyn Audio>>>,
+        storage2settings_rx: Receiver<Box<dyn Audio>>,
+    ) -> SettingsWidget {
         SettingsWidget {
-            title: "Основная тема".to_string(),
+            title: "".to_string(),
+            audio: None,
+            map2settings_rx,
+            storage2settings_rx,
         }
     }
 
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
+        match self.map2settings_rx.try_recv() {
+            Ok(audio) => {
+                self.title = audio.lock().unwrap().get_title();
+                self.audio = Some(audio);
+            }
+            Err(_) => (),
+        }
+
+        match self.storage2settings_rx.try_recv() {
+            Ok(audio) => {
+                let _ = self
+                    .audio
+                    .as_mut()
+                    .unwrap()
+                    .lock()
+                    .unwrap()
+                    .insert_audio(0, audio);
+            }
+            Err(_) => (),
+        }
+
+        if self.audio.is_none() {
+            return;
+        }
+
         ui.vertical_centered(|ui| {
             ui.heading(&self.title);
         });
 
+        // todo
         ui.horizontal(|ui| {
             let mut scalar = 0.0;
             ui.label("Громкость");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
-            });
-        });
-
-        ui.horizontal(|ui| {
-            let mut scalar = 0.0;
-            ui.label("Цикличность");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.button("🔁");
             });
         });
 
@@ -54,25 +84,28 @@ impl SettingsWidget {
             ui.add_space(10.0);
         });
 
-        ui.horizontal(|ui| {
-            let mut scalar = 0.0;
-            ui.label("The Shire");
+        let n = self.audio.clone().unwrap().lock().unwrap().audio_count();
+        for i in 0..n {
+            let audio = self
+                .audio
+                .clone()
+                .unwrap()
+                .lock()
+                .unwrap()
+                .get_audio(i)
+                .unwrap();
 
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.small("🗙");
-                ui.button("🔁");
-                ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
+            ui.horizontal(|ui| {
+                let mut scalar = 0.0;
+                ui.label(audio.get_title());
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.small("🗙");
+                    ui.button("🔁");
+                    ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
+                });
             });
-        });
-        ui.add_space(5.0);
-        ui.horizontal(|ui| {
-            let mut scalar = 0.0;
-            ui.label("Rain");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.small("🗙");
-                ui.button("🔁");
-                ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
-            });
-        });
+            ui.add_space(5.0);
+        }
     }
 }

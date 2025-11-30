@@ -22,17 +22,21 @@ use crate::storage::stream::Stream;
 /// Composition implements Audio trait.
 #[derive(Clone)]
 pub struct Track {
-    volume: u8,
+    title: String,
+    volume: f32,
     is_looped_flag: bool,
     source: Box<dyn Source>,
 }
 
 impl Track {
     pub fn new(source: Box<dyn Source>) -> Track {
+        let title = source.get_title();
+
         Track {
-            volume: 100,
+            volume: 1.0,
             is_looped_flag: true,
             source,
+            title,
         }
     }
 }
@@ -46,12 +50,12 @@ impl Audio for Track {
         self.source = source;
     }
 
-    fn get_volume(&self) -> u8 {
+    fn get_volume(&self) -> f32 {
         self.volume
     }
 
-    fn set_volume(&mut self, volume: u8) {
-        self.volume = volume.clamp(0, 100);
+    fn set_volume(&mut self, volume: f32) {
+        self.volume = volume.clamp(0.0, 1.0);
     }
 
     fn is_looped(&self) -> bool {
@@ -84,6 +88,14 @@ impl Audio for Track {
 
     fn clone_box(&self) -> Box<dyn Audio> {
         Box::new(self.clone())
+    }
+
+    fn get_title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn set_title(&mut self, title: String) {
+        self.title = title
     }
 }
 
@@ -130,11 +142,11 @@ mod tests {
     #[test]
     fn track_volume() {
         let mut tr = get_track();
-        assert_eq!(100, tr.get_volume());
-        tr.set_volume(42);
-        assert_eq!(42, tr.get_volume());
-        tr.set_volume(150);
-        assert_eq!(100, tr.get_volume());
+        assert_eq!(1.0, tr.get_volume());
+        tr.set_volume(0.42);
+        assert_eq!(0.42, tr.get_volume());
+        tr.set_volume(150.0);
+        assert_eq!(1.0, tr.get_volume());
     }
 
     #[test]

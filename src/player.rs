@@ -14,12 +14,11 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::hash::Hash;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
-use crate::storage::stream::{self, Playlist, Stream, SubStream};
+use crate::storage::stream::Stream;
 
 enum Command {
     Play,
@@ -32,8 +31,6 @@ enum Command {
 
 enum Response {
     Position(f32),
-    // Ok,
-    // Err
 }
 
 /// Music Player.

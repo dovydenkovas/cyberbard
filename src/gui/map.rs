@@ -14,53 +14,40 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use egui::{Ui, Vec2, load::SizedTexture, vec2};
+use std::{
+    process::Child,
+    sync::{Arc, Mutex, MutexGuard, mpsc::Sender},
+};
 
-#[derive(Clone)]
-struct Child {
-    pub title: String,
-    pub x: f32,
-    pub y: f32,
-}
+use crate::{
+    audio::audio::Audio,
+    map::{Map, Point},
+    storage::stream::Stream,
+};
+use egui::{Color32, ColorImage, Ui, Vec2, Widget, load::SizedTexture, vec2};
 
 pub struct MapWidget {
+    map: Arc<Mutex<Map>>,
     image: Option<egui::ColorImage>,
-    compositions: Vec<String>,
-    childs: Vec<Child>,
+    childs: Vec<Point>,
+    is_root: bool,
+    map2settings_tx: Sender<Arc<Mutex<dyn Audio>>>,
+    map2player_tx: Sender<(String, Stream)>,
 }
 
 impl MapWidget {
-    pub fn new() -> MapWidget {
+    pub fn new(
+        map: Arc<Mutex<Map>>,
+        map2settings_tx: Sender<Arc<Mutex<dyn Audio>>>,
+        map2player_tx: Sender<(String, Stream)>,
+    ) -> MapWidget {
         MapWidget {
+            map,
             image: None,
-            compositions: vec![
-                "Основная тема".to_string(),
-                "Битва".to_string(),
-                "Трагическая тема".to_string(),
-                "Диалог".to_string(),
-            ],
-            childs: vec![
-                Child {
-                    title: "1".to_string(),
-                    x: 0.3,
-                    y: 0.15,
-                },
-                Child {
-                    title: "2".to_string(),
-                    x: 0.8,
-                    y: 0.3,
-                },
-                Child {
-                    title: "3".to_string(),
-                    x: 0.5,
-                    y: 0.5,
-                },
-                Child {
-                    title: "4".to_string(),
-                    x: 0.6,
-                    y: 0.9,
-                },
-            ],
+            childs: vec![],
+            is_root: true,
+            map2settings_tx,
+            map2player_tx,
         }
     }
 
@@ -68,54 +55,83 @@ impl MapWidget {
         println!("goto parent");
     }
 
-    fn goto_child_map(&mut self, title: String) {
-        println!("goto child {}", title)
+    fn goto_child_map(&mut self, point: Point) {
+        println!("goto child {:?}", point)
     }
 
-    fn select_composition(&self, text: &str) {
-        println!("Select {}", text)
+    fn select_composition(&self, audio: Arc<Mutex<dyn Audio>>) {
+        let cl_audio = Arc::clone(&audio);
+        let _ = self.map2settings_tx.send(cl_audio);
+        let stream = audio.lock().unwrap().get_stream();
+        if let Some(stream) = stream {
+            let _ = self
+                .map2player_tx
+                .send((audio.lock().unwrap().get_title(), stream));
+        }
     }
 
     fn add_composition(&mut self) {
-        println!("Add composition");
+        self.map.lock().unwrap().push_new_audio();
     }
 
-    fn update_composition(&self, ui: &mut Ui, text: &str) {
-        let btn = egui::Button::new(text).min_size(Vec2::new(80.0, 50.0));
-        if ui.add(btn).clicked() {
-            self.select_composition(text);
+    fn render_composition(&self, ui: &mut Ui, map: &MutexGuard<'_, Map>, index: usize) {
+        let audio = map.get_audio(index);
+        let title = audio.lock().unwrap().get_title();
+
+        let btn = egui::Button::new(&title).min_size(Vec2::new(80.0, 50.0));
+
+        let response = ui.add(btn);
+        if response.clicked() {
+            self.select_composition(audio);
         }
         ui.add_space(5.0);
     }
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui) {
-        egui::SidePanel::left("Tracks")
-            .resizable(false)
-            .default_width(150.0)
-            .show_inside(ui, |ui| {
-                if ui.button("⏴").clicked() {
-                    self.goto_parent_map();
-                }
-                ui.vertical_centered_justified(|ui| {
-                    ui.add_space(20.0);
-                    for composition in &self.compositions {
-                        self.update_composition(ui, composition);
-                    }
-                });
-                ui.vertical_centered(|ui| {
-                    ui.add_space(10.0);
-                    let btn = egui::Button::new("+")
-                        .min_size(Vec2::new(40.0, 40.0))
-                        .corner_radius(90.0);
-                    if ui.add(btn).clicked() {
-                        self.add_composition();
-                    }
-                });
-            });
-        ui.add_space(10.0);
-
         if self.image.is_none() {
-            let image_data = load_image_from_path("music/bg.png").unwrap();
+            self.render_tracks(ctx, ui);
+        } else {
+            egui::SidePanel::left("Tracks")
+                .resizable(false)
+                .default_width(150.0)
+                .show_inside(ui, |ui| {
+                    self.render_tracks(ctx, ui);
+                });
+            ui.add_space(10.0);
+            self.render_map(ctx, ui);
+        }
+    }
+
+    fn render_tracks(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
+        if !self.is_root {
+            if ui.button("⏴").clicked() {
+                self.goto_parent_map();
+            }
+        }
+
+        ui.vertical_centered_justified(|ui| {
+            ui.add_space(20.0);
+            let map = self.map.lock().unwrap();
+            for i in 0..map.audio_count() {
+                self.render_composition(ui, &map, i);
+            }
+        });
+
+        ui.vertical_centered(|ui| {
+            ui.add_space(10.0);
+            let btn = egui::Button::new("+")
+                .min_size(Vec2::new(40.0, 40.0))
+                .corner_radius(90.0);
+            if ui.add(btn).clicked() {
+                self.add_composition();
+            }
+        });
+    }
+
+    fn render_map(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+        if self.image.is_none() {
+            let image_data = load_image_from_path("music/bg.png")
+                .unwrap_or(ColorImage::filled([300, 300], Color32::from_white_alpha(0)));
             self.image = Some(image_data);
         }
 
@@ -129,6 +145,9 @@ impl MapWidget {
 
                 let available_size = ui.available_size();
                 let (mut w, mut h) = (handle.size()[0] as f32, handle.size()[1] as f32);
+                if available_size.x < 50.0 || available_size.y < 50.0 {
+                    return;
+                }
                 if available_size.x / available_size.y > h / w {
                     let k = handle.size()[1] as f32 / handle.size()[0] as f32;
                     w = k * available_size.y;
@@ -149,14 +168,14 @@ impl MapWidget {
                     );
                     let response = ui.put(
                         button_rect,
-                        egui::Button::new(&child.title)
+                        egui::Button::new("")
                             .corner_radius(90.0)
                             .min_size(vec2(0.0, 0.0))
                             .fill(egui::Color32::from_rgb(0, 0, 80)),
                     );
 
                     if response.clicked() {
-                        self.goto_child_map(child.title)
+                        self.goto_child_map(child)
                     }
                 }
             } else {

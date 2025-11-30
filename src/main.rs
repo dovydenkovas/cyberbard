@@ -14,22 +14,17 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::sync::{Arc, Mutex};
 
 use crate::{
+    map::Map,
     player::Player,
-    storage::{
-        localstorage::LocalStorage,
-        storage::Storage,
-        stream::{Playlist, Stream, SubStream},
-    },
+    storage::{localstorage::LocalStorage, storage::Storage},
 };
 
 mod audio;
 mod gui;
+mod map;
 mod player;
 mod storage;
 
@@ -37,11 +32,12 @@ mod storage;
 /// Initialize all structures and start player and application threads.
 fn main() {
     let storage = Arc::new(Mutex::new(LocalStorage::new("music".to_string())));
+    let map = Arc::new(Mutex::new(Map::new()));
     let player = Player::new();
     let player = Arc::new(Mutex::new(player));
     player
         .lock()
         .unwrap()
         .set_stream(storage.lock().unwrap().get(1).unwrap().get_stream());
-    gui::window::run_gui(storage, player);
+    gui::window::run_gui(storage, map, player);
 }

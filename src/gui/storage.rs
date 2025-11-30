@@ -19,9 +19,12 @@ use std::sync::{Arc, Mutex, mpsc::Sender};
 use egui::{Label, Ui};
 use rfd::FileDialog;
 
-use crate::storage::{
-    storage::{Storage, StorageCredentials},
-    stream::Stream,
+use crate::{
+    audio::{audio::Audio, track::Track},
+    storage::{
+        storage::{Storage, StorageCredentials},
+        stream::Stream,
+    },
 };
 
 struct Music {
@@ -48,12 +51,14 @@ pub struct StorageWidget {
     music: Vec<Music>,
     storage: Arc<Mutex<dyn Storage>>,
     storage2player_tx: Sender<(String, Stream)>,
+    storage2settings_tx: Sender<Box<dyn Audio>>,
 }
 
 impl StorageWidget {
     pub fn new(
         storage: Arc<Mutex<dyn Storage>>,
         storage2player_tx: Sender<(String, Stream)>,
+        storage2settings_tx: Sender<Box<dyn Audio>>,
     ) -> StorageWidget {
         let mut widget = StorageWidget {
             caption: "".to_string(),
@@ -61,6 +66,7 @@ impl StorageWidget {
             music: vec![],
             storage,
             storage2player_tx,
+            storage2settings_tx,
         };
         widget.sync_with_storage();
         widget
@@ -119,8 +125,10 @@ impl StorageWidget {
         let _ = self.storage2player_tx.send((source.title.clone(), stream));
     }
 
-    fn send_source_to_map(source: &Music) {
-        println!("Send to map {}", source.title)
+    fn send_source_to_map(&self, source: &Music) {
+        let source = self.storage.lock().unwrap().get(source.index).unwrap();
+        let audio = Track::new(source);
+        let _ = self.storage2settings_tx.send(Box::new(audio));
     }
 
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
@@ -165,7 +173,7 @@ impl StorageWidget {
             ui.label(&source.title);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("+".to_string()).clicked() {
-                    StorageWidget::send_source_to_map(source);
+                    self.send_source_to_map(source);
                 }
                 if ui.button("♫".to_string()).clicked() {
                     self.send_source_to_player(source);

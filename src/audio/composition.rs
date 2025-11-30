@@ -23,17 +23,21 @@ use crate::storage::stream::Stream;
 /// Composition implements Audio trait.
 #[derive(Clone)]
 pub struct Composition {
-    volume: u8,
+    volume: f32,
     is_looped_flag: bool,
     audios: Vec<Box<dyn Audio>>,
+    title: String,
 }
 
 impl Composition {
-    fn new() -> Composition {
+    pub fn new() -> Composition {
+        let title = "Ваш крутой плейлист".to_string();
+
         Composition {
-            volume: 100,
+            volume: 1.0,
             is_looped_flag: true,
             audios: vec![],
+            title,
         }
     }
 }
@@ -47,12 +51,12 @@ impl Audio for Composition {
         // Not implemented for composition
     }
 
-    fn get_volume(&self) -> u8 {
+    fn get_volume(&self) -> f32 {
         self.volume
     }
 
-    fn set_volume(&mut self, volume: u8) {
-        self.volume = volume.clamp(0, 100);
+    fn set_volume(&mut self, volume: f32) {
+        self.volume = volume.clamp(0.0, 1.0);
     }
 
     fn is_looped(&self) -> bool {
@@ -120,6 +124,14 @@ impl Audio for Composition {
     fn clone_box(&self) -> Box<dyn Audio> {
         Box::new(self.clone())
     }
+
+    fn get_title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn set_title(&mut self, title: String) {
+        self.title = title;
+    }
 }
 
 #[cfg(test)]
@@ -165,11 +177,11 @@ mod tests {
     #[test]
     fn composition_volume() {
         let mut c = get_composition();
-        assert_eq!(100, c.get_volume());
-        c.set_volume(42);
-        assert_eq!(42, c.get_volume());
-        c.set_volume(150);
-        assert_eq!(100, c.get_volume());
+        assert_eq!(1.0, c.get_volume());
+        c.set_volume(0.42);
+        assert_eq!(0.42, c.get_volume());
+        c.set_volume(150.0);
+        assert_eq!(1.0, c.get_volume());
     }
 
     #[test]

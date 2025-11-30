@@ -19,10 +19,12 @@ use crate::storage::stream::Stream;
 
 /// Audio trait. Describe Track and Composition interface.
 pub trait Audio {
+    fn get_title(&self) -> String;
+    fn set_title(&mut self, title: String);
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError>;
     fn set_source(&mut self, source: Box<dyn Source>);
-    fn get_volume(&self) -> u8;
-    fn set_volume(&mut self, volume: u8);
+    fn get_volume(&self) -> f32;
+    fn set_volume(&mut self, volume: f32);
     fn is_looped(&self) -> bool;
     fn looped(&mut self, looped: bool);
     fn get_stream(&self) -> Option<Stream>;

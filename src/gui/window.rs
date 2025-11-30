@@ -14,9 +14,12 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::env;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
+use crate::audio::audio::Audio;
+use crate::map::Map;
 use crate::player::Player;
 use crate::storage::storage::Storage;
 use crate::storage::stream::Stream;
@@ -37,17 +40,34 @@ pub struct Application {
 
 impl Application {
     /// Create main window struct
-    pub fn new(storage: Arc<Mutex<dyn Storage>>, player: Arc<Mutex<Player>>) -> Application {
+    pub fn new(
+        storage: Arc<Mutex<dyn Storage>>,
+        map: Arc<Mutex<Map>>,
+        player: Arc<Mutex<Player>>,
+    ) -> Application {
         let (storage2player_tx, storage2player_rx): (
             Sender<(String, Stream)>,
             Receiver<(String, Stream)>,
         ) = mpsc::channel();
 
+        let (map2settings_tx, map2settings_rx): (
+            Sender<Arc<Mutex<dyn Audio>>>,
+            Receiver<Arc<Mutex<dyn Audio>>>,
+        ) = mpsc::channel();
+
+        let (storage2settings_tx, storage2settings_rx): (
+            Sender<Box<dyn Audio>>,
+            Receiver<Box<dyn Audio>>,
+        ) = mpsc::channel();
+
+        let (map2player_tx, map2player_rx): (Sender<(String, Stream)>, Receiver<(String, Stream)>) =
+            mpsc::channel();
+
         Application {
-            storage_widget: StorageWidget::new(storage, storage2player_tx),
-            map_widget: MapWidget::new(),
-            player_widget: PlayerWidget::new(player, storage2player_rx),
-            settings_widget: SettingsWidget::new(),
+            storage_widget: StorageWidget::new(storage, storage2player_tx, storage2settings_tx),
+            map_widget: MapWidget::new(map, map2settings_tx, map2player_tx),
+            player_widget: PlayerWidget::new(player, storage2player_rx, map2player_rx),
+            settings_widget: SettingsWidget::new(map2settings_rx, storage2settings_rx),
         }
     }
 }
@@ -76,11 +96,11 @@ impl eframe::App for Application {
     }
 }
 
-pub fn run_gui(storage: Arc<Mutex<dyn Storage>>, player: Arc<Mutex<Player>>) {
+pub fn run_gui(storage: Arc<Mutex<dyn Storage>>, map: Arc<Mutex<Map>>, player: Arc<Mutex<Player>>) {
     let options = eframe::NativeOptions::default();
     let _ = eframe::run_native(
-        "Cyberbard",
+        format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")).as_str(),
         options,
-        Box::new(|_cc| Ok(Box::new(Application::new(storage, player)))),
+        Box::new(|_cc| Ok(Box::new(Application::new(storage, map, player)))),
     );
 }
