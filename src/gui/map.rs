@@ -15,39 +15,34 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::{
+    cell::RefCell,
     process::Child,
+    rc::Rc,
     sync::{Arc, Mutex, MutexGuard, mpsc::Sender},
 };
 
 use crate::{
     audio::audio::Audio,
+    gui::events::{Event, Events},
     map::{Map, Point},
     storage::stream::Stream,
 };
 use egui::{Color32, ColorImage, Ui, Vec2, Widget, load::SizedTexture, vec2};
 
 pub struct MapWidget {
-    map: Arc<Mutex<Map>>,
+    map: Rc<RefCell<Map>>,
     image: Option<egui::ColorImage>,
     childs: Vec<Point>,
     is_root: bool,
-    map2settings_tx: Sender<Arc<Mutex<dyn Audio>>>,
-    map2player_tx: Sender<(String, Stream)>,
 }
 
 impl MapWidget {
-    pub fn new(
-        map: Arc<Mutex<Map>>,
-        map2settings_tx: Sender<Arc<Mutex<dyn Audio>>>,
-        map2player_tx: Sender<(String, Stream)>,
-    ) -> MapWidget {
+    pub fn new(map: Rc<RefCell<Map>>) -> MapWidget {
         MapWidget {
             map,
             image: None,
             childs: vec![],
             is_root: true,
-            map2settings_tx,
-            map2player_tx,
         }
     }
 
@@ -59,50 +54,52 @@ impl MapWidget {
         println!("goto child {:?}", point)
     }
 
-    fn select_composition(&self, audio: Arc<Mutex<dyn Audio>>) {
-        let cl_audio = Arc::clone(&audio);
-        let _ = self.map2settings_tx.send(cl_audio);
-        let stream = audio.lock().unwrap().get_stream();
-        if let Some(stream) = stream {
-            let _ = self
-                .map2player_tx
-                .send((audio.lock().unwrap().get_title(), stream));
-        }
+    fn select_composition(&self, audio: Rc<RefCell<dyn Audio>>, events: &mut Events) {
+        events.push_back(Event::Play {
+            audio: Rc::clone(&audio),
+        });
+        events.push_back(Event::Select { audio });
     }
 
-    fn add_composition(&mut self) {
-        self.map.lock().unwrap().push_new_audio();
+    fn add_composition(&mut self, events: &mut Events) {
+        events.push_back(Event::MapNewComposition);
     }
 
-    fn render_composition(&self, ui: &mut Ui, map: &MutexGuard<'_, Map>, index: usize) {
-        let audio = map.get_audio(index);
-        let title = audio.lock().unwrap().get_title();
+    fn render_composition(
+        &self,
+        ui: &mut Ui,
+        map: &Rc<RefCell<Map>>,
+        index: usize,
+        events: &mut Events,
+    ) {
+        let audio = map.borrow().get_audio(index);
+        let title = audio.borrow().get_title();
 
         let btn = egui::Button::new(&title).min_size(Vec2::new(80.0, 50.0));
 
         let response = ui.add(btn);
         if response.clicked() {
-            self.select_composition(audio);
+            self.select_composition(audio, events);
         }
         ui.add_space(5.0);
     }
 
-    pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+    pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         if self.image.is_none() {
-            self.render_tracks(ctx, ui);
+            self.render_tracks(ctx, ui, events);
         } else {
             egui::SidePanel::left("Tracks")
                 .resizable(false)
                 .default_width(150.0)
                 .show_inside(ui, |ui| {
-                    self.render_tracks(ctx, ui);
+                    self.render_tracks(ctx, ui, events);
                 });
             ui.add_space(10.0);
             self.render_map(ctx, ui);
         }
     }
 
-    fn render_tracks(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
+    fn render_tracks(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         if !self.is_root {
             if ui.button("⏴").clicked() {
                 self.goto_parent_map();
@@ -111,9 +108,8 @@ impl MapWidget {
 
         ui.vertical_centered_justified(|ui| {
             ui.add_space(20.0);
-            let map = self.map.lock().unwrap();
-            for i in 0..map.audio_count() {
-                self.render_composition(ui, &map, i);
+            for i in 0..self.map.borrow().audio_count() {
+                self.render_composition(ui, &self.map, i, events);
             }
         });
 
@@ -123,7 +119,7 @@ impl MapWidget {
                 .min_size(Vec2::new(40.0, 40.0))
                 .corner_radius(90.0);
             if ui.add(btn).clicked() {
-                self.add_composition();
+                self.add_composition(events);
             }
         });
     }

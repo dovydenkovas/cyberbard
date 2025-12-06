@@ -14,8 +14,9 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pub mod map;
-pub mod player;
-pub mod settings;
-pub mod storage;
-pub mod window;
+pub mod application;
+mod events;
+mod map;
+mod player;
+mod settings;
+mod storage;

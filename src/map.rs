@@ -15,7 +15,9 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
+    rc::Rc,
     sync::{Arc, Mutex},
 };
 
@@ -28,7 +30,7 @@ pub struct Point {
 }
 
 pub struct Map {
-    audio: Vec<Arc<Mutex<dyn Audio>>>,
+    audio: Vec<Rc<RefCell<dyn Audio>>>,
     maps: HashMap<Point, Map>,
 }
 
@@ -49,12 +51,12 @@ impl Map {
     // pub fn set_logo(&mut self, image: Image) {}
     // pub fn get_logo(&self, image: Image) {}
 
-    pub fn insert_audio(&mut self, index: usize, audio: Arc<Mutex<dyn Audio>>) {
+    pub fn insert_audio(&mut self, index: usize, audio: Rc<RefCell<dyn Audio>>) {
         self.audio.insert(index, audio);
     }
 
     pub fn push_new_audio(&mut self) {
-        let audio = Arc::new(Mutex::new(Composition::new()));
+        let audio = Rc::new(RefCell::new(Composition::new()));
         self.audio.push(audio);
     }
 
@@ -62,8 +64,8 @@ impl Map {
         self.audio.remove(index);
     }
 
-    pub fn get_audio(&self, index: usize) -> Arc<Mutex<dyn Audio>> {
-        Arc::clone(&self.audio[index])
+    pub fn get_audio(&self, index: usize) -> Rc<RefCell<dyn Audio>> {
+        Rc::clone(&self.audio[index])
     }
 
     pub fn audio_count(&self) -> usize {

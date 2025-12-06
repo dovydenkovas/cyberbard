@@ -14,6 +14,9 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::audio::audio::{Audio, AudioError};
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
@@ -25,7 +28,7 @@ use crate::storage::stream::Stream;
 pub struct Composition {
     volume: f32,
     is_looped_flag: bool,
-    audios: Vec<Box<dyn Audio>>,
+    audios: Vec<Rc<RefCell<dyn Audio>>>,
     title: String,
 }
 
@@ -71,7 +74,7 @@ impl Audio for Composition {
         let mut stream = Stream::new(vec![]);
         let mut is_none = true;
         for audio in self.audios.iter() {
-            match audio.get_stream() {
+            match audio.borrow().get_stream() {
                 Some(s) => {
                     stream.merge(s);
                     is_none = false;
@@ -82,7 +85,11 @@ impl Audio for Composition {
         if is_none { None } else { Some(stream) }
     }
 
-    fn insert_audio(&mut self, index: usize, audio: Box<dyn Audio>) -> Result<(), AudioError> {
+    fn insert_audio(
+        &mut self,
+        index: usize,
+        audio: Rc<RefCell<dyn Audio>>,
+    ) -> Result<(), AudioError> {
         match self.audios.len().cmp(&index) {
             std::cmp::Ordering::Less => Err(AudioError::OutOfRange),
             std::cmp::Ordering::Equal => {
@@ -110,7 +117,7 @@ impl Audio for Composition {
         }
     }
 
-    fn get_audio(&self, index: usize) -> Result<Box<dyn Audio>, AudioError> {
+    fn get_audio(&self, index: usize) -> Result<Rc<RefCell<dyn Audio>>, AudioError> {
         match self.audios.len().cmp(&index) {
             std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
             std::cmp::Ordering::Greater => Ok(self.audios[index].clone()),
@@ -121,16 +128,17 @@ impl Audio for Composition {
         self.audios.len()
     }
 
-    fn clone_box(&self) -> Box<dyn Audio> {
-        Box::new(self.clone())
-    }
-
     fn get_title(&self) -> String {
         self.title.clone()
     }
 
     fn set_title(&mut self, title: String) {
         self.title = title;
+    }
+
+    fn push_audio(&mut self, audio: Rc<RefCell<dyn Audio>>) -> Result<(), AudioError> {
+        self.audios.push(audio);
+        Ok(())
     }
 }
 
@@ -194,9 +202,9 @@ mod tests {
 
     #[test]
     fn composition_get_stream() {
-        let tr = get_track();
+        let tr = Rc::new(RefCell::new(get_track()));
         let mut c = Composition::new();
-        let _ = c.insert_audio(0, Box::new(tr));
+        let _ = c.insert_audio(0, tr);
         assert!(c.get_stream().unwrap().is_empty());
     }
 
@@ -205,9 +213,9 @@ mod tests {
         let mut tr = get_composition();
         assert_eq!(0, tr.audio_count());
 
-        let tr2: Box<dyn Audio> = Box::new(get_composition());
+        let tr2 = Rc::new(RefCell::new(get_composition()));
         assert!(tr.insert_audio(0, tr2).is_ok());
-        let tr3: Box<dyn Audio> = Box::new(get_composition());
+        let tr3 = Rc::new(RefCell::new(get_composition()));
         assert_eq!(Err(AudioError::OutOfRange), tr.insert_audio(10, tr3));
 
         let a0 = tr.get_audio(0);

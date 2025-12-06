@@ -15,6 +15,8 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::{
+    cell::RefCell,
+    rc::Rc,
     sync::{Arc, Mutex, mpsc::Receiver},
     thread::sleep,
     time::Duration,
@@ -22,92 +24,58 @@ use std::{
 
 use egui::Ui;
 
-use crate::{player::Player, storage::stream::Stream};
+use crate::{
+    audio::audio::Audio,
+    gui::events::{self, Event, Events},
+    player::Player,
+    storage::{source::Source, stream::Stream},
+};
 
 pub struct PlayerWidget {
     title: String,
-    progress: Arc<Mutex<f32>>,
     volume: f32,
     is_pause: bool,
-    player: Arc<Mutex<Player>>,
-    storage2player_rx: Receiver<(String, Stream)>,
-    map2player_rx: Receiver<(String, Stream)>,
+    player: Rc<RefCell<Player>>,
 }
 
 impl PlayerWidget {
-    pub fn new(
-        player: Arc<Mutex<Player>>,
-        storage2player_rx: Receiver<(String, Stream)>,
-        map2player_rx: Receiver<(String, Stream)>,
-    ) -> PlayerWidget {
-        let pos_player = Arc::clone(&player);
-
-        let progress = Arc::new(Mutex::new(0.0));
-        let pos_progress = Arc::clone(&progress);
-
+    pub fn new(player: Rc<RefCell<Player>>) -> PlayerWidget {
         let widget = PlayerWidget {
             title: "".to_string(),
-            progress,
             volume: 1.0,
             is_pause: true,
             player,
-            storage2player_rx,
-            map2player_rx,
         };
-
-        std::thread::spawn(move || {
-            loop {
-                *pos_progress.lock().unwrap() = pos_player.lock().unwrap().get_position();
-                sleep(Duration::from_millis(50));
-            }
-        });
 
         widget
     }
 
-    fn toggle_pause(&mut self) {
+    fn toggle_pause(&mut self, events: &mut Events) {
         self.is_pause = !self.is_pause;
         if self.is_pause {
-            self.player.lock().unwrap().pause();
+            events.push_back(Event::PlayerPause)
         } else {
-            self.player.lock().unwrap().play();
+            events.push_back(Event::PlayerPlay)
         }
     }
 
-    fn stop(&mut self) {
-        self.player.lock().unwrap().stop();
+    fn stop(&mut self, events: &mut Events) {
+        events.push_back(Event::PlayerStop);
         self.is_pause = true;
     }
 
-    fn check_events(&mut self) {
-        match self.storage2player_rx.try_recv() {
-            Ok((title, stream)) => {
-                self.title = title;
-                self.player.lock().unwrap().set_stream(stream);
-                self.player.lock().unwrap().play();
-                self.is_pause = false;
-            }
-            Err(_) => (),
-        }
-
-        match self.map2player_rx.try_recv() {
-            Ok((title, stream)) => {
-                self.title = title;
-                self.player.lock().unwrap().set_stream(stream);
-                self.player.lock().unwrap().play();
-                self.is_pause = false;
-            }
-            Err(_) => (),
-        }
+    pub fn play(&mut self, audio: &Rc<RefCell<dyn Audio>>) {
+        self.title = audio.borrow().get_title();
+        self.is_pause = false;
     }
 
-    fn set_volume(&mut self) {
-        self.player.lock().unwrap().set_volume(self.volume);
+    fn set_volume(&mut self, events: &mut Events) {
+        events.push_back(Event::PlayerSetVolume {
+            volume: self.volume,
+        });
     }
 
-    pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui) {
-        self.check_events();
-
+    pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         ui.add_space(20.0);
         ui.vertical_centered(|ui| {
             ui.heading(&self.title);
@@ -115,7 +83,7 @@ impl PlayerWidget {
 
         ui.add_space(20.0);
         let progress_bar =
-            egui::ProgressBar::new(*self.progress.lock().unwrap()).desired_height(4.0);
+            egui::ProgressBar::new(self.player.borrow().get_position()).desired_height(4.0);
         ui.add(progress_bar);
         ui.add_space(10.0);
 
@@ -123,18 +91,18 @@ impl PlayerWidget {
             let pause_char = if self.is_pause { "▶" } else { "⏸" };
 
             if ui.button(pause_char).clicked() {
-                self.toggle_pause()
+                self.toggle_pause(events)
             }
 
             if ui.button("⏹").clicked() {
-                self.stop();
+                self.stop(events);
             }
 
             if ui
                 .add(egui::Slider::new(&mut self.volume, 0.0..=1.0).show_value(false))
                 .changed()
             {
-                self.set_volume();
+                self.set_volume(events);
             };
         });
         ui.add_space(10.0);

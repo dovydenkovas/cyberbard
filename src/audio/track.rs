@@ -14,6 +14,9 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::audio::audio::{Audio, AudioError};
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
@@ -70,7 +73,11 @@ impl Audio for Track {
         Some(self.source.get_stream())
     }
 
-    fn insert_audio(&mut self, _index: usize, _audio: Box<dyn Audio>) -> Result<(), AudioError> {
+    fn insert_audio(
+        &mut self,
+        _index: usize,
+        _audio: Rc<RefCell<dyn Audio>>,
+    ) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
@@ -78,16 +85,12 @@ impl Audio for Track {
         Err(AudioError::NotAComposition)
     }
 
-    fn get_audio(&self, _index: usize) -> Result<Box<dyn Audio>, AudioError> {
+    fn get_audio(&self, _index: usize) -> Result<Rc<RefCell<dyn Audio>>, AudioError> {
         Err(AudioError::NotAComposition)
     }
 
     fn audio_count(&self) -> usize {
         return 0;
-    }
-
-    fn clone_box(&self) -> Box<dyn Audio> {
-        Box::new(self.clone())
     }
 
     fn get_title(&self) -> String {
@@ -96,6 +99,10 @@ impl Audio for Track {
 
     fn set_title(&mut self, title: String) {
         self.title = title
+    }
+
+    fn push_audio(&mut self, audio: Rc<RefCell<dyn Audio>>) -> Result<(), AudioError> {
+        Err(AudioError::NotAComposition)
     }
 }
 
@@ -167,9 +174,9 @@ mod tests {
     #[test]
     fn track_not_a_composition() {
         let mut tr = get_track();
-        let tr2: Box<dyn Audio> = Box::new(get_track());
+        let tr2 = Rc::new(RefCell::new(get_track()));
         assert_eq!(Err(AudioError::NotAComposition), tr.insert_audio(0, tr2));
-        let tr2: Box<dyn Audio> = Box::new(get_track());
+        let tr2 = Rc::new(RefCell::new(get_track()));
         assert_eq!(Err(AudioError::NotAComposition), tr.insert_audio(10, tr2));
 
         assert_eq!(Err(AudioError::NotAComposition), tr.erase_audio(0));

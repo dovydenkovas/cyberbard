@@ -14,6 +14,9 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
 
@@ -28,17 +31,15 @@ pub trait Audio {
     fn is_looped(&self) -> bool;
     fn looped(&mut self, looped: bool);
     fn get_stream(&self) -> Option<Stream>;
-    fn insert_audio(&mut self, index: usize, audio: Box<dyn Audio>) -> Result<(), AudioError>;
+    fn insert_audio(
+        &mut self,
+        index: usize,
+        audio: Rc<RefCell<dyn Audio>>,
+    ) -> Result<(), AudioError>;
+    fn push_audio(&mut self, audio: Rc<RefCell<dyn Audio>>) -> Result<(), AudioError>;
     fn erase_audio(&mut self, index: usize) -> Result<(), AudioError>;
-    fn get_audio(&self, index: usize) -> Result<Box<dyn Audio>, AudioError>;
+    fn get_audio(&self, index: usize) -> Result<Rc<RefCell<dyn Audio>>, AudioError>;
     fn audio_count(&self) -> usize;
-    fn clone_box(&self) -> Box<dyn Audio>;
-}
-
-impl Clone for Box<dyn Audio> {
-    fn clone(&self) -> Box<dyn Audio> {
-        self.clone_box()
-    }
 }
 
 #[derive(Debug, PartialEq)]

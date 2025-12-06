@@ -12,31 +12,25 @@
 //   GNU General Public License for more details.
 //
 //   You should have received a copy of the GNU General Public License
-//   along with this program.  If not, see <https://www.gnu.org/licenses/>
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use crate::{
-    application::Application,
-    map::Map,
-    player::Player,
-    storage::{localstorage::LocalStorage, storage::Storage},
+    audio::audio::Audio,
+    storage::{source::Source, storage::StorageCredentials},
 };
 
-mod application;
-mod audio;
-mod gui;
-mod map;
-mod player;
-mod storage;
+pub type Events = VecDeque<Event>;
 
-/// Application entry point.
-/// Initialize all structures and start player and application threads.
-fn main() {
-    let storage = Rc::new(RefCell::new(LocalStorage::new("music".to_string())));
-    let map = Rc::new(RefCell::new(Map::new()));
-    let player = Rc::new(RefCell::new(Player::new()));
-    let application = Application::new(storage, map, player);
-
-    gui::application::run_gui(application);
+pub enum Event {
+    SetupStorage { credentials: StorageCredentials },
+    Play { audio: Rc<RefCell<dyn Audio>> },
+    AddAudioToComposition { audio: Rc<RefCell<dyn Audio>> },
+    PlayerPlay,
+    PlayerPause,
+    PlayerStop,
+    PlayerSetVolume { volume: f32 },
+    Select { audio: Rc<RefCell<dyn Audio>> },
+    MapNewComposition,
 }

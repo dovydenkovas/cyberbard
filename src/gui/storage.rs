@@ -14,13 +14,19 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::sync::{Arc, Mutex, mpsc::Sender};
+use std::{
+    cell::RefCell,
+    collections::VecDeque,
+    rc::Rc,
+    sync::{Arc, Mutex, mpsc::Sender},
+};
 
 use egui::{Label, Ui};
 use rfd::FileDialog;
 
 use crate::{
     audio::{audio::Audio, track::Track},
+    gui::events::{Event, Events},
     storage::{
         storage::{Storage, StorageCredentials},
         stream::Stream,
@@ -49,57 +55,47 @@ pub struct StorageWidget {
     caption: String,
     search_pattern: String,
     music: Vec<Music>,
-    storage: Arc<Mutex<dyn Storage>>,
-    storage2player_tx: Sender<(String, Stream)>,
-    storage2settings_tx: Sender<Box<dyn Audio>>,
+    storage: Rc<RefCell<dyn Storage>>,
 }
 
 impl StorageWidget {
-    pub fn new(
-        storage: Arc<Mutex<dyn Storage>>,
-        storage2player_tx: Sender<(String, Stream)>,
-        storage2settings_tx: Sender<Box<dyn Audio>>,
-    ) -> StorageWidget {
+    pub fn new(storage: Rc<RefCell<dyn Storage>>) -> StorageWidget {
         let mut widget = StorageWidget {
             caption: "".to_string(),
             search_pattern: "".to_string(),
             music: vec![],
             storage,
-            storage2player_tx,
-            storage2settings_tx,
         };
         widget.sync_with_storage();
         widget
     }
 
-    fn sync_with_storage(&mut self) {
+    pub fn sync_with_storage(&mut self) {
         self.music.clear();
-        let n = self.storage.lock().unwrap().len();
+        let n = self.storage.borrow().len();
         for i in 0..n {
             self.music.push(Music::new(
                 true,
                 i,
-                self.storage.lock().unwrap().get(i).unwrap().get_title(),
+                self.storage.borrow().get(i).unwrap().get_title(),
                 vec![],
             ));
         }
-        self.caption = self.storage.lock().unwrap().get_caption();
+        self.caption = self.storage.borrow().get_caption();
         self.search();
     }
 
-    fn open_project(&mut self) {
+    fn open_project(&mut self, events: &mut Events) {
         println!("Open project");
         let path = FileDialog::new()
             .set_title("Выбор каталога с музыкой и файлами игры")
             .pick_folder();
 
         if let Some(path) = path {
-            self.storage
-                .lock()
-                .unwrap()
-                .setup_storage(StorageCredentials::Local { path });
+            events.push_back(Event::SetupStorage {
+                credentials: StorageCredentials::Local { path },
+            });
         }
-        self.sync_with_storage();
     }
 
     fn save_project(&self) {
@@ -114,28 +110,24 @@ impl StorageWidget {
         }
     }
 
-    fn send_source_to_player(&self, source: &Music) {
-        let stream = self
-            .storage
-            .lock()
-            .unwrap()
-            .get(source.index)
-            .unwrap()
-            .get_stream();
-        let _ = self.storage2player_tx.send((source.title.clone(), stream));
+    fn send_source_to_player(&self, source: &Music, events: &mut Events) {
+        let audio = Rc::new(RefCell::new(Track::new(
+            self.storage.borrow().get(source.index).unwrap(),
+        )));
+        events.push_back(Event::Play { audio });
     }
 
-    fn send_source_to_map(&self, source: &Music) {
-        let source = self.storage.lock().unwrap().get(source.index).unwrap();
-        let audio = Track::new(source);
-        let _ = self.storage2settings_tx.send(Box::new(audio));
+    fn send_source_to_map(&self, source: &Music, events: &mut Events) {
+        let source = self.storage.borrow().get(source.index).unwrap();
+        let audio = Rc::new(RefCell::new(Track::new(source)));
+        events.push_back(Event::AddAudioToComposition { audio });
     }
 
-    pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
+    pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             if ui.button("🗁".to_string()).clicked() {
-                self.open_project()
+                self.open_project(events)
             };
             // if ui.button("💾".to_string()).clicked() {
             //     self.save_project()
@@ -162,21 +154,21 @@ impl StorageWidget {
             .show(ui, |ui| {
                 for source in &self.music {
                     if source.shown {
-                        self.render_music(ui, source);
+                        self.render_music(ui, source, events);
                     }
                 }
             });
     }
 
-    fn render_music(&self, ui: &mut Ui, source: &Music) {
+    fn render_music(&self, ui: &mut Ui, source: &Music, events: &mut Events) {
         ui.horizontal(|ui| {
             ui.label(&source.title);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("+".to_string()).clicked() {
-                    self.send_source_to_map(source);
+                    self.send_source_to_map(source, events);
                 }
                 if ui.button("♫".to_string()).clicked() {
-                    self.send_source_to_player(source);
+                    self.send_source_to_player(source, events);
                 }
 
                 for tag in &source.tags {
