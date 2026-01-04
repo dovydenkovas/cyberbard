@@ -20,3 +20,4 @@ mod map;
 mod player;
 mod settings;
 mod storage;
+mod widgets;

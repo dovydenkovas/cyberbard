@@ -15,20 +15,13 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::collections::VecDeque;
-use std::env;
-use std::rc::Rc;
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::{env, thread};
+
+use rfd::MessageDialog;
 
 use crate::application::Application;
-use crate::audio::audio::Audio;
 use crate::gui::events::Event;
-use crate::map::Map;
-use crate::player::Player;
-use crate::storage::storage::Storage;
-use crate::storage::stream::Stream;
 
-use super::events::Events;
 use super::map::MapWidget;
 use super::player::PlayerWidget;
 use super::settings::SettingsWidget;
@@ -88,6 +81,19 @@ impl ApplicationImp {
                 Event::MapNewComposition => {
                     self.application.map_add_composition();
                 }
+                Event::SaveProject { path } => match self.application.save_project(path) {
+                    Ok(_) => (),
+                    Err(err) => {
+                        let err = err.to_string();
+                        thread::spawn(move || {
+                            MessageDialog::new()
+                                .set_title("Ошибка сохранения файла")
+                                .set_description(err)
+                                .set_level(rfd::MessageLevel::Error)
+                                .show();
+                        });
+                    }
+                },
             }
         }
     }

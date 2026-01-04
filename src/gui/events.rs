@@ -14,17 +14,15 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{cell::RefCell, collections::VecDeque, path::PathBuf, rc::Rc};
 
-use crate::{
-    audio::audio::Audio,
-    storage::{source::Source, storage::StorageCredentials},
-};
+use crate::{audio::audio::Audio, storage::storage::StorageCredentials};
 
 pub type Events = VecDeque<Event>;
 
 pub enum Event {
     SetupStorage { credentials: StorageCredentials },
+    SaveProject { path: PathBuf },
     Play { audio: Rc<RefCell<dyn Audio>> },
     AddAudioToComposition { audio: Rc<RefCell<dyn Audio>> },
     PlayerPlay,

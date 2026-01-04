@@ -14,21 +14,14 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex, mpsc::Receiver},
-    thread::sleep,
-    time::Duration,
-};
+use std::{cell::RefCell, rc::Rc, time::Duration};
 
 use egui::Ui;
 
 use crate::{
     audio::audio::Audio,
-    gui::events::{self, Event, Events},
+    gui::events::{Event, Events},
     player::Player,
-    storage::{source::Source, stream::Stream},
 };
 
 pub struct PlayerWidget {

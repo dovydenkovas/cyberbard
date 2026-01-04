@@ -14,13 +14,11 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
-use crate::{
-    Map, Player, Storage,
-    audio::{audio::Audio, composition::Composition},
-    storage::storage::StorageCredentials,
-};
+use serde::Serialize;
+
+use crate::{Map, Player, Storage, audio::audio::Audio, storage::storage::StorageCredentials};
 
 pub struct Application {
     storage: Rc<RefCell<dyn Storage>>,
@@ -94,5 +92,11 @@ impl Application {
 
     pub fn map_add_composition(&mut self) {
         self.map.borrow_mut().push_new_audio();
+    }
+
+    pub fn save_project(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        let map = &self.map.as_ref();
+        fs::write(path, toml::to_string(map).unwrap())?;
+        Ok(())
     }
 }

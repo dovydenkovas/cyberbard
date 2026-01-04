@@ -14,34 +14,30 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex, mpsc::Receiver},
-};
+use std::{cell::RefCell, rc::Rc};
 
-use egui::{Ui, warn_if_debug_build};
+use egui::Ui;
 
 use crate::{
-    audio::{audio::Audio, composition},
-    gui::events::Events,
+    audio::audio::Audio,
+    gui::{events::Events, widgets::EditableHeader},
 };
 
 pub struct SettingsWidget {
-    title: String,
+    title: EditableHeader,
     composition: Rc<RefCell<Option<Rc<RefCell<dyn Audio>>>>>,
 }
 impl SettingsWidget {
     pub fn new(composition: Rc<RefCell<Option<Rc<RefCell<dyn Audio>>>>>) -> SettingsWidget {
         SettingsWidget {
-            title: "".to_string(),
+            title: EditableHeader::new("".to_string()),
             composition,
         }
     }
 
     pub fn sync_with_application(&mut self) {
         if let Some(comp) = self.composition.borrow_mut().as_ref() {
-            self.title = comp.borrow().get_title();
+            self.title.set_text(comp.borrow().get_title());
         }
     }
 
@@ -67,40 +63,49 @@ impl SettingsWidget {
 
         if let Some(composition) = self.composition.borrow_mut().as_ref() {
             ui.vertical_centered(|ui| {
-                ui.heading(&self.title);
+                if let Some(new_title) = self.title.update(ui) {
+                    composition.borrow_mut().set_title(new_title);
+                }
             });
 
-            // todo
-            // ui.horizontal(|ui| {
-            //     let mut scalar = 0.0;
-            //     ui.label("Громкость");
-            //     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            //         ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
-            //     });
-            // });
-
             ui.add_space(20.0);
+            ui.horizontal(|ui| {
+                let mut scalar = 0.0;
+                ui.label("Громкость");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
+                });
+            });
+            ui.add_space(25.0);
             ui.vertical_centered(|ui| {
                 ui.label("Состав композиции");
                 ui.add_space(10.0);
             });
+            ui.add_space(20.0);
 
-            let n = composition.borrow().audio_count();
-            for i in 0..n {
-                let audio = composition.borrow().get_audio(i).unwrap();
-
-                ui.horizontal(|ui| {
-                    let mut scalar = 0.0;
-                    ui.label(audio.borrow().get_title());
-
-                    // ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    //     ui.small("🗙");
-                    //     ui.button("🔁");
-                    //     ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
-                    // });
-                });
-                ui.add_space(5.0);
-            }
+            self.render_playlist(ui, "Музыка", composition);
+            self.render_playlist(ui, "Эффекты", composition);
         }
+    }
+
+    fn render_playlist(&self, ui: &mut Ui, title: &str, composition: &Rc<RefCell<dyn Audio>>) {
+        ui.separator();
+        ui.heading(title);
+        let n = composition.borrow().audio_count();
+        for i in 0..n {
+            let audio = composition.borrow().get_audio(i).unwrap();
+
+            ui.horizontal(|ui| {
+                let mut scalar = 0.0;
+                ui.label(audio.borrow().get_title());
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.small("🗙");
+                    ui.add(egui::Slider::new(&mut scalar, 0.0..=100.0).show_value(false));
+                });
+            });
+            ui.add_space(5.0);
+        }
+        ui.add_space(20.0);
     }
 }

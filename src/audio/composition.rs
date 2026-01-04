@@ -17,6 +17,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use serde::{Deserialize, Serialize};
+
 use crate::audio::audio::{Audio, AudioError};
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
@@ -24,7 +26,7 @@ use crate::storage::stream::Stream;
 /// Composition is container for other compositions and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
 /// Composition implements Audio trait.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Composition {
     volume: f32,
     is_looped_flag: bool,
@@ -60,14 +62,6 @@ impl Audio for Composition {
 
     fn set_volume(&mut self, volume: f32) {
         self.volume = volume.clamp(0.0, 1.0);
-    }
-
-    fn is_looped(&self) -> bool {
-        self.is_looped_flag
-    }
-
-    fn looped(&mut self, looped: bool) {
-        self.is_looped_flag = looped;
     }
 
     fn get_stream(&self) -> Option<Stream> {

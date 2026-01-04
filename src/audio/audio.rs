@@ -17,19 +17,20 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use erased_serde::serialize_trait_object;
+use serde::{Deserialize, Serialize};
+
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
 
 /// Audio trait. Describe Track and Composition interface.
-pub trait Audio {
+pub trait Audio: erased_serde::Serialize {
     fn get_title(&self) -> String;
     fn set_title(&mut self, title: String);
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError>;
     fn set_source(&mut self, source: Box<dyn Source>);
     fn get_volume(&self) -> f32;
     fn set_volume(&mut self, volume: f32);
-    fn is_looped(&self) -> bool;
-    fn looped(&mut self, looped: bool);
     fn get_stream(&self) -> Option<Stream>;
     fn insert_audio(
         &mut self,
@@ -42,7 +43,9 @@ pub trait Audio {
     fn audio_count(&self) -> usize;
 }
 
-#[derive(Debug, PartialEq)]
+serialize_trait_object!(Audio);
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum AudioError {
     NotAComposition,
     NotATrack,

@@ -14,21 +14,19 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use serde::{Deserialize, Serialize};
 
 use crate::audio::{audio::Audio, composition::Composition};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Point {
     pub x: f32,
     pub y: f32,
 }
 
+#[derive(Serialize)]
 pub struct Map {
     audio: Vec<Rc<RefCell<dyn Audio>>>,
     maps: HashMap<Point, Map>,
