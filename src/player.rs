@@ -26,7 +26,9 @@ enum Command {
     Stop,
     GetPosition,
     SetStream(Stream),
+    SyncStream(Stream),
     SetVolume(f32),
+    SetTrackVolume(f32, usize, usize),
 }
 
 enum Response {
@@ -38,7 +40,6 @@ enum Response {
 pub struct Player {
     cmd_tx: Sender<Command>,
     resp_rx: Receiver<Response>,
-    handle: Option<thread::JoinHandle<()>>,
     paused: bool,
 }
 
@@ -47,7 +48,7 @@ impl Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
         let (resp_tx, resp_rx): (Sender<Response>, Receiver<Response>) = mpsc::channel();
 
-        let handle = thread::spawn(move || {
+        let _ = thread::spawn(move || {
             let mut opt_stream: Option<Stream> = None;
             loop {
                 match &mut opt_stream {
@@ -78,19 +79,24 @@ impl Player {
                             }
 
                             Ok(Command::SetStream(s)) => opt_stream = Some(s),
-
+                            Ok(Command::SyncStream(s)) => stream.sync(s),
                             Ok(Command::GetPosition) => {
                                 resp_tx
                                     .send(Response::Position(stream.get_position()))
                                     .unwrap();
                             }
                             Ok(Command::SetVolume(vol)) => {
-                                stream.set_volume(vol);
+                                stream.set_total_volume(vol);
                             }
+                            Ok(Command::SetTrackVolume(v, p, i)) => {
+                                stream.set_partial_volume(v, p, i)
+                            }
+
                             Err(mpsc::TryRecvError::Empty) => {
                                 thread::sleep(Duration::from_millis(50));
                             }
                             Err(mpsc::TryRecvError::Disconnected) => {
+                                stream.stop();
                                 break;
                             }
                         }
@@ -102,7 +108,6 @@ impl Player {
         Player {
             cmd_tx,
             resp_rx,
-            handle: Some(handle),
             paused: true,
         }
     }
@@ -111,12 +116,18 @@ impl Player {
         let _ = self.cmd_tx.send(Command::SetStream(stream));
     }
 
+    pub fn sync(&mut self, stream: Stream) {
+        let _ = self.cmd_tx.send(Command::SyncStream(stream));
+    }
+
     pub fn play(&mut self) {
         let _ = self.cmd_tx.send(Command::Play);
+        self.paused = false;
     }
 
     pub fn pause(&mut self) {
         let _ = self.cmd_tx.send(Command::Pause);
+        self.paused = true;
     }
 
     pub fn is_paused(&self) -> bool {
@@ -125,6 +136,7 @@ impl Player {
 
     pub fn stop(&mut self) {
         let _ = self.cmd_tx.send(Command::Stop);
+        self.paused = true;
     }
 
     pub fn get_position(&self) -> f32 {
@@ -137,6 +149,12 @@ impl Player {
 
     pub fn set_volume(&mut self, vol: f32) {
         let _ = self.cmd_tx.send(Command::SetVolume(vol));
+    }
+
+    pub fn set_track_volume(&mut self, volume: f32, playlist: usize, index: usize) {
+        let _ = self
+            .cmd_tx
+            .send(Command::SetTrackVolume(volume, playlist, index));
     }
 }
 

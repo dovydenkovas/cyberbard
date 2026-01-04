@@ -14,20 +14,14 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    cell::RefCell,
-    process::Child,
-    rc::Rc,
-    sync::{Arc, Mutex, MutexGuard, mpsc::Sender},
-};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    audio::audio::Audio,
+    audio::audio::{Audio, RawAudio},
     gui::events::{Event, Events},
     map::{Map, Point},
-    storage::stream::Stream,
 };
-use egui::{Color32, ColorImage, Ui, Vec2, Widget, load::SizedTexture, vec2};
+use egui::{Color32, ColorImage, Ui, Vec2, load::SizedTexture, vec2};
 
 pub struct MapWidget {
     map: Rc<RefCell<Map>>,
@@ -54,7 +48,7 @@ impl MapWidget {
         println!("goto child {:?}", point)
     }
 
-    fn select_composition(&self, audio: Rc<RefCell<dyn Audio>>, events: &mut Events) {
+    fn select_composition(&self, audio: Audio, events: &mut Events) {
         events.push_back(Event::Play {
             audio: Rc::clone(&audio),
         });

@@ -14,24 +14,30 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::storage::storage::StorageCredentials;
 use crate::storage::stream::Stream;
+use crate::storage::tag::Tag;
 
 use super::storage::Storage;
 use super::stream::Opener;
+use id3::TagLike;
 use rodio::Source;
+use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 type BSource = Box<dyn super::source::Source>;
 
 /// Storage of audio sources, that read audio files from local disk.
 /// Open stream from .mp3, .ogg and so on files.
+#[derive(Serialize)]
 pub struct LocalStorage {
     storage_path: PathBuf,
     caption: String,
     sources: Vec<BSource>,
+    tags: HashMap<String, Vec<Tag>>,
 }
 
 fn is_music_file(filename: &str) -> bool {
@@ -47,6 +53,7 @@ impl LocalStorage {
             storage_path: PathBuf::from(&storage_path),
             caption: storage_path,
             sources: vec![],
+            tags: HashMap::new(),
         };
         storage.load_sources();
         storage
@@ -56,12 +63,33 @@ impl LocalStorage {
 impl Storage for LocalStorage {
     fn load_sources(&mut self) {
         let mut sources = vec![];
+        self.tags.clear();
         for entry in WalkDir::new(self.storage_path.clone()) {
             match entry {
                 Ok(dir_entry) => {
                     let filename = dir_entry.path().to_string_lossy().to_string();
                     if is_music_file(&filename) {
-                        sources.push(LocalSource::new(filename));
+                        let mut title: String = Path::new(&filename)
+                            .file_stem()
+                            .unwrap()
+                            .to_string_lossy()
+                            .chars()
+                            .take(50)
+                            .collect();
+
+                        if let Ok(tag) = id3::Tag::read_from_path(dir_entry.path()) {
+                            // todo: Add artist
+                            // if let Some(artist) = tag.artist() {
+                            //     println!("artist: {}", artist);
+                            // }
+                            if let Some(t) = tag.title() {
+                                if !t.trim().is_empty() {
+                                    title = t.trim().to_string();
+                                }
+                            }
+                        }
+
+                        sources.push(LocalSource::new(filename, title));
                     }
                 }
                 Err(_) => (),
@@ -112,29 +140,21 @@ impl Storage for LocalStorage {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct LocalSource {
     filename: String,
     title: String,
 }
 
 impl LocalSource {
-    pub fn new(filename: String) -> Box<dyn crate::storage::source::Source> {
-        let title = Path::new(&filename)
-            .file_stem()
-            .unwrap()
-            .to_string_lossy()
-            .chars()
-            .take(50)
-            .collect();
-
+    pub fn new(filename: String, title: String) -> Box<dyn crate::storage::source::Source> {
         Box::new(LocalSource { filename, title })
     }
 }
 
 impl super::source::Source for LocalSource {
     fn get_stream(&self) -> super::stream::Stream {
-        Stream::from_source(LocalOpener::new(self.filename.clone()))
+        Stream::from_source(LocalOpener::new(self.filename.clone()), 100.0)
     }
 
     fn get_title(&self) -> String {

@@ -14,23 +14,21 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use serde::{Deserialize, Serialize};
 
 use crate::audio::{audio::Audio, composition::Composition};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Point {
     pub x: f32,
     pub y: f32,
 }
 
+#[derive(Serialize)]
 pub struct Map {
-    audio: Vec<Rc<RefCell<dyn Audio>>>,
+    audio: Vec<Audio>,
     maps: HashMap<Point, Map>,
 }
 
@@ -51,7 +49,7 @@ impl Map {
     // pub fn set_logo(&mut self, image: Image) {}
     // pub fn get_logo(&self, image: Image) {}
 
-    pub fn insert_audio(&mut self, index: usize, audio: Rc<RefCell<dyn Audio>>) {
+    pub fn insert_audio(&mut self, index: usize, audio: Audio) {
         self.audio.insert(index, audio);
     }
 
@@ -64,7 +62,7 @@ impl Map {
         self.audio.remove(index);
     }
 
-    pub fn get_audio(&self, index: usize) -> Rc<RefCell<dyn Audio>> {
+    pub fn get_audio(&self, index: usize) -> Audio {
         Rc::clone(&self.audio[index])
     }
 

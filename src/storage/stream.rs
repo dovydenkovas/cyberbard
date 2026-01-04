@@ -31,11 +31,12 @@ pub trait Opener {
 
 pub struct SubStream {
     source: Box<dyn Opener + Send>,
+    volume: f32,
 }
 
 impl SubStream {
-    pub fn new(source: Box<dyn Opener + Send>) -> SubStream {
-        SubStream { source }
+    pub fn new(source: Box<dyn Opener + Send>, volume: f32) -> SubStream {
+        SubStream { source, volume }
     }
 
     pub fn reset_sink(&mut self, sink: &mut Sink) -> Result<(), Box<dyn std::error::Error>> {
@@ -43,6 +44,14 @@ impl SubStream {
         sink.clear();
         sink.append(source);
         Ok(())
+    }
+
+    pub fn get_volume(&self) -> f32 {
+        self.volume
+    }
+
+    pub fn set_volume(&mut self, v: f32) {
+        self.volume = v;
     }
 
     pub fn total_duration(&self) -> f32 {
@@ -55,10 +64,15 @@ pub struct Playlist {
     current: usize,
     sink: Sink,
     is_stopped: bool,
+    volume: f32,
 }
 
 impl Playlist {
-    pub fn new(ostream: &mut OutputStream, mut sources: Vec<SubStream>) -> Option<Playlist> {
+    pub fn new(
+        ostream: &mut OutputStream,
+        mut sources: Vec<SubStream>,
+        volume: f32,
+    ) -> Option<Playlist> {
         if sources.len() == 0 {
             None
         } else {
@@ -69,8 +83,30 @@ impl Playlist {
                 current: 0,
                 sink,
                 is_stopped: true,
+                volume,
             })
         }
+    }
+
+    pub fn replace_sources(&mut self, sources: Vec<SubStream>) {
+        if sources.len() == 0 {
+            unreachable!("Empty sources replacement");
+        }
+
+        println!("{}", self.sources.len());
+
+        while self.current > sources.len() {
+            self.current -= 1;
+        }
+
+        self.sources = sources;
+        let pos = self.sink.get_pos();
+        self.sources[self.current].reset_sink(&mut self.sink);
+        self.sink.try_seek(pos).unwrap();
+        if !self.is_stopped {
+            self.play();
+        }
+        println!("{}", self.sources.len());
     }
 
     pub fn play(&mut self) {
@@ -84,6 +120,7 @@ impl Playlist {
             self.current = (self.current + 1) % self.sources.len();
             self.sources[self.current].reset_sink(&mut self.sink);
             self.play();
+            self.update_volume(self.volume);
         }
     }
 
@@ -107,25 +144,59 @@ impl Playlist {
         self.sink.get_pos().as_secs_f32() / self.sources[self.current].total_duration()
     }
 
-    pub fn set_volume(&mut self, vol: f32) {
-        self.sink.set_volume(vol);
+    pub fn update_volume(&mut self, volume: f32) {
+        self.volume = volume;
+        self.sink
+            .set_volume(volume * self.sources[self.current].get_volume());
+    }
+
+    pub fn set_partial_volume(&mut self, vol: f32, index: usize) {
+        self.sources[index].set_volume(vol);
+        if index == self.current {
+            self.update_volume(self.volume);
+        }
+    }
+
+    pub fn extend(&mut self, other: Playlist) {
+        self.sources.extend(other.sources);
     }
 }
 
 pub struct Stream {
     playlists: Vec<Playlist>,
+    total_volume: f32,
 }
 
 impl Stream {
-    pub fn new(playlists: Vec<Playlist>) -> Stream {
-        Stream { playlists }
+    pub fn new(playlists: Vec<Playlist>, total_volume: f32) -> Stream {
+        Stream {
+            playlists,
+            total_volume,
+        }
     }
 
-    pub fn from_source(src: Box<dyn Opener + Send>) -> Stream {
-        let pl = Playlist::new(&mut OSTREAM.lock().unwrap(), vec![SubStream::new(src)]).unwrap();
+    pub fn from_source(src: Box<dyn Opener + Send>, volume: f32) -> Stream {
+        let pl = Playlist::new(
+            &mut OSTREAM.lock().unwrap(),
+            vec![SubStream::new(src, volume)],
+            1.0,
+        )
+        .unwrap();
         Stream {
             playlists: vec![pl],
+            total_volume: 0.0,
         }
+    }
+
+    pub fn set_total_volume(&mut self, volume: f32) {
+        self.total_volume = volume;
+        for pl in self.playlists.iter_mut() {
+            pl.update_volume(volume);
+        }
+    }
+
+    pub fn set_partial_volume(&mut self, volume: f32, playlist_index: usize, audio_index: usize) {
+        self.playlists[playlist_index].set_partial_volume(volume, audio_index);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -137,6 +208,29 @@ impl Stream {
     }
 
     pub fn merge(&mut self, other: Stream) {
+        for (i, pl) in other.playlists.into_iter().enumerate() {
+            if i < self.playlists.len() {
+                self.playlists[i].extend(pl);
+            } else {
+                self.playlists.extend(vec![pl]);
+            }
+        }
+    }
+
+    pub fn sync(&mut self, new: Stream) {
+        self.total_volume = new.total_volume;
+        for (i, pl) in new.playlists.into_iter().enumerate() {
+            if i < self.playlists.len() {
+                self.playlists[i].replace_sources(pl.sources);
+                self.playlists[i].update_volume(self.total_volume);
+            } else {
+                self.playlists.extend(vec![pl]);
+                self.playlists[i].update_volume(self.total_volume);
+            }
+        }
+    }
+
+    pub fn merge_parallel(&mut self, other: Stream) {
         self.playlists.extend(other.playlists);
     }
 
@@ -162,12 +256,6 @@ impl Stream {
         match self.playlists.get(0) {
             Some(pl) => pl.get_position(),
             None => 0.0,
-        }
-    }
-
-    pub fn set_volume(&mut self, vol: f32) {
-        for pl in &mut self.playlists {
-            pl.set_volume(vol);
         }
     }
 

@@ -17,13 +17,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::audio::audio::{Audio, AudioError};
+use erased_serde::serialize_trait_object;
+use serde::{Deserialize, Serialize};
+
+use crate::audio::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
 
 /// Track is container one Stream and it's settings.
 /// Composition implements Audio trait.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Track {
     title: String,
     volume: f32,
@@ -44,7 +47,7 @@ impl Track {
     }
 }
 
-impl Audio for Track {
+impl RawAudio for Track {
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
         Ok(self.source.clone())
     }
@@ -61,23 +64,13 @@ impl Audio for Track {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn is_looped(&self) -> bool {
-        self.is_looped_flag
-    }
-
-    fn looped(&mut self, looped: bool) {
-        self.is_looped_flag = looped;
-    }
-
     fn get_stream(&self) -> Option<Stream> {
-        Some(self.source.get_stream())
+        let mut s = self.source.get_stream();
+        s.set_partial_volume(self.volume, 0, 0);
+        Some(s)
     }
 
-    fn insert_audio(
-        &mut self,
-        _index: usize,
-        _audio: Rc<RefCell<dyn Audio>>,
-    ) -> Result<(), AudioError> {
+    fn insert_audio(&mut self, _index: usize, _audio: Audio) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
@@ -85,7 +78,7 @@ impl Audio for Track {
         Err(AudioError::NotAComposition)
     }
 
-    fn get_audio(&self, _index: usize) -> Result<Rc<RefCell<dyn Audio>>, AudioError> {
+    fn get_audio(&self, _index: usize) -> Result<Audio, AudioError> {
         Err(AudioError::NotAComposition)
     }
 
@@ -101,7 +94,7 @@ impl Audio for Track {
         self.title = title
     }
 
-    fn push_audio(&mut self, audio: Rc<RefCell<dyn Audio>>) -> Result<(), AudioError> {
+    fn push_audio(&mut self, audio: Audio) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 }

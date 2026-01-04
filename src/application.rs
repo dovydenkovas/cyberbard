@@ -14,11 +14,13 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+
+use serde::Serialize;
 
 use crate::{
     Map, Player, Storage,
-    audio::{audio::Audio, composition::Composition},
+    audio::audio::{Audio, AudioCell},
     storage::storage::StorageCredentials,
 };
 
@@ -26,7 +28,8 @@ pub struct Application {
     storage: Rc<RefCell<dyn Storage>>,
     map: Rc<RefCell<Map>>,
     player: Rc<RefCell<Player>>,
-    selected_compostion: Rc<RefCell<Option<Rc<RefCell<dyn Audio>>>>>,
+    selected_compostion: AudioCell,
+    current_playing: AudioCell,
 }
 
 impl Application {
@@ -35,14 +38,12 @@ impl Application {
         map: Rc<RefCell<Map>>,
         player: Rc<RefCell<Player>>,
     ) -> Application {
-        player
-            .borrow_mut()
-            .set_stream(storage.borrow().get(1).unwrap().get_stream());
         Application {
             storage,
             map,
             player,
             selected_compostion: Rc::new(RefCell::new(None)),
+            current_playing: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -62,17 +63,26 @@ impl Application {
         Rc::clone(&self.map)
     }
 
-    pub fn get_selected_composition(&self) -> Rc<RefCell<Option<Rc<RefCell<dyn Audio>>>>> {
+    pub fn get_selected_composition(&self) -> AudioCell {
         Rc::clone(&self.selected_compostion)
     }
 
-    pub fn set_selected_composition(&self, comp: Option<Rc<RefCell<dyn Audio>>>) {
+    pub fn get_current_playing(&self) -> AudioCell {
+        Rc::clone(&self.current_playing)
+    }
+
+    pub fn set_selected_composition(&self, comp: Option<Audio>) {
         self.selected_compostion.replace(comp);
     }
 
-    pub fn player_set_audio(&mut self, audio: Rc<RefCell<dyn Audio>>) {
+    pub fn player_set_audio(&mut self, audio: Audio) {
+        self.current_playing.replace(Some(Rc::clone(&audio)));
+        println!("Select comp;");
         if let Some(s) = audio.borrow().get_stream() {
             self.player.borrow_mut().set_stream(s);
+            self.player
+                .borrow_mut()
+                .set_volume(audio.borrow().get_volume());
         }
     }
 
@@ -92,7 +102,33 @@ impl Application {
         self.player.borrow_mut().set_volume(volume);
     }
 
+    pub fn player_set_track_volume(&mut self, volume: f32, playlist: usize, index: usize) {
+        self.player
+            .borrow_mut()
+            .set_track_volume(volume, playlist, index);
+    }
+
+    pub fn player_sync(&mut self) {
+        if self.current_playing.borrow().is_some() {
+            self.player.borrow_mut().sync(
+                self.current_playing
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .get_stream()
+                    .unwrap(),
+            );
+        }
+    }
+
     pub fn map_add_composition(&mut self) {
         self.map.borrow_mut().push_new_audio();
+    }
+
+    pub fn save_project(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        let map = &self.map.as_ref();
+        fs::write(path, toml::to_string(map).unwrap())?;
+        Ok(())
     }
 }

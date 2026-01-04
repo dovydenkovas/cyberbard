@@ -17,18 +17,20 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::audio::audio::{Audio, AudioError};
+use serde::{Deserialize, Serialize};
+
+use crate::audio::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
 
 /// Composition is container for other compositions and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
 /// Composition implements Audio trait.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Composition {
     volume: f32,
     is_looped_flag: bool,
-    audios: Vec<Rc<RefCell<dyn Audio>>>,
+    audios: Vec<Audio>,
     title: String,
 }
 
@@ -45,7 +47,7 @@ impl Composition {
     }
 }
 
-impl Audio for Composition {
+impl RawAudio for Composition {
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
         Err(AudioError::NotATrack)
     }
@@ -62,18 +64,11 @@ impl Audio for Composition {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn is_looped(&self) -> bool {
-        self.is_looped_flag
-    }
-
-    fn looped(&mut self, looped: bool) {
-        self.is_looped_flag = looped;
-    }
-
     fn get_stream(&self) -> Option<Stream> {
-        let mut stream = Stream::new(vec![]);
+        let mut stream = Stream::new(vec![], self.volume);
         let mut is_none = true;
         for audio in self.audios.iter() {
+            println!("{}", audio.borrow().get_title());
             match audio.borrow().get_stream() {
                 Some(s) => {
                     stream.merge(s);
@@ -85,11 +80,7 @@ impl Audio for Composition {
         if is_none { None } else { Some(stream) }
     }
 
-    fn insert_audio(
-        &mut self,
-        index: usize,
-        audio: Rc<RefCell<dyn Audio>>,
-    ) -> Result<(), AudioError> {
+    fn insert_audio(&mut self, index: usize, audio: Audio) -> Result<(), AudioError> {
         match self.audios.len().cmp(&index) {
             std::cmp::Ordering::Less => Err(AudioError::OutOfRange),
             std::cmp::Ordering::Equal => {
@@ -117,7 +108,7 @@ impl Audio for Composition {
         }
     }
 
-    fn get_audio(&self, index: usize) -> Result<Rc<RefCell<dyn Audio>>, AudioError> {
+    fn get_audio(&self, index: usize) -> Result<Audio, AudioError> {
         match self.audios.len().cmp(&index) {
             std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
             std::cmp::Ordering::Greater => Ok(self.audios[index].clone()),
@@ -136,7 +127,7 @@ impl Audio for Composition {
         self.title = title;
     }
 
-    fn push_audio(&mut self, audio: Rc<RefCell<dyn Audio>>) -> Result<(), AudioError> {
+    fn push_audio(&mut self, audio: Audio) -> Result<(), AudioError> {
         self.audios.push(audio);
         Ok(())
     }

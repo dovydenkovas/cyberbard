@@ -14,7 +14,10 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use serde::{Deserialize, Serialize};
+
 /// Tag structures. Used to Sources in Storage classification.
+#[derive(Serialize, Deserialize)]
 pub struct Tag {
     text: String,
     color: String,

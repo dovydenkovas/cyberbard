@@ -15,23 +15,17 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::collections::VecDeque;
-use std::env;
 use std::rc::Rc;
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::{env, thread};
+
+use rfd::MessageDialog;
 
 use crate::application::Application;
-use crate::audio::audio::Audio;
 use crate::gui::events::Event;
-use crate::map::Map;
-use crate::player::Player;
-use crate::storage::storage::Storage;
-use crate::storage::stream::Stream;
 
-use super::events::Events;
 use super::map::MapWidget;
 use super::player::PlayerWidget;
-use super::settings::SettingsWidget;
+use super::playlist::PlaylistWidget;
 use super::storage::StorageWidget;
 
 /// Describe Cyberbard main window.
@@ -42,7 +36,7 @@ pub struct ApplicationImp {
     storage_widget: StorageWidget,
     map_widget: MapWidget,
     player_widget: PlayerWidget,
-    settings_widget: SettingsWidget,
+    playlist_widget: PlaylistWidget,
 }
 
 impl ApplicationImp {
@@ -58,7 +52,7 @@ impl ApplicationImp {
             storage_widget: StorageWidget::new(storage),
             map_widget: MapWidget::new(map),
             player_widget: PlayerWidget::new(player),
-            settings_widget: SettingsWidget::new(composition),
+            playlist_widget: PlaylistWidget::new(composition),
         }
     }
 
@@ -75,19 +69,51 @@ impl ApplicationImp {
                     self.application.player_play();
                 }
                 Event::AddAudioToComposition { audio } => {
-                    self.settings_widget.insert_audio(audio);
+                    self.playlist_widget.insert_audio(Rc::clone(&audio));
+                    self.application.player_sync();
                 }
                 Event::PlayerPlay => self.application.player_play(),
                 Event::PlayerPause => self.application.player_pause(),
                 Event::PlayerStop => self.application.player_stop(),
+                Event::PlayerSync => {
+                    self.application.player_sync();
+                    self.player_widget.play(
+                        self.application
+                            .get_current_playing()
+                            .borrow()
+                            .as_ref()
+                            .unwrap(),
+                    );
+                }
                 Event::PlayerSetVolume { volume } => self.application.player_set_volume(volume),
+                Event::PlayerSetTrackVolume {
+                    volume,
+                    playlist,
+                    index,
+                } => self
+                    .application
+                    .player_set_track_volume(volume, playlist, index),
+
                 Event::Select { audio } => {
                     self.application.set_selected_composition(Some(audio));
-                    self.settings_widget.sync_with_application();
+                    self.playlist_widget.sync_with_application();
                 }
                 Event::MapNewComposition => {
                     self.application.map_add_composition();
                 }
+                Event::SaveProject { path } => match self.application.save_project(path) {
+                    Ok(_) => (),
+                    Err(err) => {
+                        let err = err.to_string();
+                        thread::spawn(move || {
+                            MessageDialog::new()
+                                .set_title("Ошибка сохранения файла")
+                                .set_description(err)
+                                .set_level(rfd::MessageLevel::Error)
+                                .show();
+                        });
+                    }
+                },
             }
         }
     }
@@ -112,7 +138,7 @@ impl eframe::App for ApplicationImp {
             .show(ctx, |ui| {
                 self.player_widget.update(ctx, ui, &mut self.events);
                 ui.separator();
-                self.settings_widget.update(ctx, ui, &mut self.events);
+                self.playlist_widget.update(ctx, ui, &mut self.events);
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {

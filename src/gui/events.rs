@@ -14,23 +14,42 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{cell::RefCell, collections::VecDeque, path::PathBuf, rc::Rc};
 
 use crate::{
-    audio::audio::Audio,
-    storage::{source::Source, storage::StorageCredentials},
+    audio::audio::{Audio, RawAudio},
+    storage::storage::StorageCredentials,
 };
 
 pub type Events = VecDeque<Event>;
 
 pub enum Event {
-    SetupStorage { credentials: StorageCredentials },
-    Play { audio: Rc<RefCell<dyn Audio>> },
-    AddAudioToComposition { audio: Rc<RefCell<dyn Audio>> },
+    SetupStorage {
+        credentials: StorageCredentials,
+    },
+    SaveProject {
+        path: PathBuf,
+    },
+    Play {
+        audio: Audio,
+    },
+    AddAudioToComposition {
+        audio: Audio,
+    },
     PlayerPlay,
     PlayerPause,
     PlayerStop,
-    PlayerSetVolume { volume: f32 },
-    Select { audio: Rc<RefCell<dyn Audio>> },
+    PlayerSync,
+    PlayerSetVolume {
+        volume: f32,
+    },
+    PlayerSetTrackVolume {
+        volume: f32,
+        playlist: usize,
+        index: usize,
+    },
+    Select {
+        audio: Audio,
+    },
     MapNewComposition,
 }

@@ -14,23 +14,15 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{
-    cell::RefCell,
-    collections::VecDeque,
-    rc::Rc,
-    sync::{Arc, Mutex, mpsc::Sender},
-};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use egui::{Label, Ui};
+use egui::{Label, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
-    audio::{audio::Audio, track::Track},
+    audio::track::Track,
     gui::events::{Event, Events},
-    storage::{
-        storage::{Storage, StorageCredentials},
-        stream::Stream,
-    },
+    storage::storage::{Storage, StorageCredentials},
 };
 
 struct Music {
@@ -98,8 +90,11 @@ impl StorageWidget {
         }
     }
 
-    fn save_project(&self) {
-        println!("Save project")
+    fn save_project(&self, events: &mut Events) {
+        println!("Save project");
+        events.push_back(Event::SaveProject {
+            path: PathBuf::from("test.toml"),
+        });
     }
 
     fn search(&mut self) {
@@ -129,9 +124,9 @@ impl StorageWidget {
             if ui.button("🗁".to_string()).clicked() {
                 self.open_project(events)
             };
-            // if ui.button("💾".to_string()).clicked() {
-            //     self.save_project()
-            // };
+            if ui.button("💾".to_string()).clicked() {
+                self.save_project(events)
+            };
             ui.vertical_centered(|ui| {
                 ui.heading(&self.caption);
             });
@@ -162,15 +157,17 @@ impl StorageWidget {
 
     fn render_music(&self, ui: &mut Ui, source: &Music, events: &mut Events) {
         ui.horizontal(|ui| {
-            ui.label(&source.title);
+            let title_label = Label::new(&source.title).sense(Sense::click()).selectable(false);
+            let ui_label = ui.add(title_label);
+            if ui_label.clicked() {
+               self.send_source_to_player(source, events);
+            }
+
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(20.0);
                 if ui.button("+".to_string()).clicked() {
                     self.send_source_to_map(source, events);
                 }
-                if ui.button("♫".to_string()).clicked() {
-                    self.send_source_to_player(source, events);
-                }
-
                 for tag in &source.tags {
                     let frame = egui::Frame::new()
                         .fill(egui::Color32::from_rgb(0, 40, 0))
