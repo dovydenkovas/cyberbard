@@ -110,15 +110,16 @@ impl Application {
 
     pub fn player_sync(&mut self) {
         if self.current_playing.borrow().is_some() {
-            self.player.borrow_mut().sync(
-                self.current_playing
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .get_stream()
-                    .unwrap(),
-            );
+            if let Some(stream) = self
+                .current_playing
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_stream()
+            {
+                self.player.borrow_mut().sync(stream);
+            }
         }
     }
 

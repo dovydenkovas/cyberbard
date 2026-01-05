@@ -24,6 +24,7 @@ enum Command {
     Play,
     Pause,
     Stop,
+    Reset,
     GetPosition,
     SetStream(Stream),
     SyncStream(Stream),
@@ -76,6 +77,12 @@ impl Player {
                             Ok(Command::Stop) => {
                                 stream.stop();
                                 stream.pause();
+                            }
+
+                            Ok(Command::Reset) => {
+                                stream.stop();
+                                stream.pause();
+                                opt_stream = None;
                             }
 
                             Ok(Command::SetStream(s)) => opt_stream = Some(s),
@@ -136,6 +143,11 @@ impl Player {
 
     pub fn stop(&mut self) {
         let _ = self.cmd_tx.send(Command::Stop);
+        self.paused = true;
+    }
+
+    pub fn reset(&mut self) {
+        let _ = self.cmd_tx.send(Command::Reset);
         self.paused = true;
     }
 

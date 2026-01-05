@@ -59,7 +59,6 @@ impl PlaylistWidget {
         if let Some(comp) = self.composition.borrow().as_ref() {
             self.title.set_text(comp.borrow().get_title());
             self.total_volume.set_value(comp.borrow().get_volume());
-            println!("{:?}", self.total_volume);
 
             let mut volumes = vec![];
             for i in 0..comp.borrow().audio_count() {
@@ -97,6 +96,7 @@ impl PlaylistWidget {
             ui.vertical_centered(|ui| {
                 if let Some(new_title) = self.title.update(ui) {
                     composition.borrow_mut().set_title(new_title);
+                    sync_with_player(events, composition);
                 }
             });
 
