@@ -14,40 +14,70 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
+use egui::TextureHandle;
 use serde::{Deserialize, Serialize};
 
 use crate::audio::{audio::Audio, composition::Composition};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Point {
-    pub x: f32,
-    pub y: f32,
-}
+
 
 #[derive(Serialize)]
 pub struct Map {
     audio: Vec<Audio>,
-    maps: HashMap<Point, Map>,
+    maps: BTreeMap<Point, Rc<RefCell<Map>>>,
+    parent: Option<Rc<RefCell<Map>>>,
+
+    #[serde(skip)]
+    image: Option<TextureHandle>,
 }
 
 impl Map {
-    pub fn new() -> Map {
+    pub fn new(parent: Option<Rc<RefCell<Map>>>) -> Map {
         Map {
             audio: vec![],
-            maps: HashMap::new(),
+            maps: BTreeMap::new(),
+            parent,
+            image: None,
         }
     }
 
-    // pub fn insert_map(&mut self, point: Point, map: Map) {}
-    // pub fn erase_map(&mut self, point: Point) {}
-    // pub fn get_map(&mut self, phild: Point) -> Map {}
-    // pub fn get_parent(&mut self) -> Map {}
-    // pub fn set_background(&mut self, image: Image) {}
-    // pub fn get_background(&self, image: Image) {}
-    // pub fn set_logo(&mut self, image: Image) {}
-    // pub fn get_logo(&self, image: Image) {}
+    pub fn insert_map(&mut self, point: Point, map: Rc<RefCell<Map>>) {
+        self.maps.insert(point, map);
+    }
+
+    pub fn erase_map(&mut self, point: Point) {
+        if self.maps.contains_key(&point) {
+            self.maps.remove(&point);
+        }
+    }
+
+    pub fn get_map(&self, child: &Point) -> Option<Rc<RefCell<Map>>> {
+        match self.maps.get(&child) {
+            Some(v) => Some(Rc::clone(v)),
+            None => None,
+        }
+    }
+
+    pub fn iter_maps(&self) -> std::collections::btree_map::Keys<Point, Rc<RefCell<Map>>> {
+        self.maps.keys()
+    }
+
+    pub fn get_parent(&self) -> Option<Rc<RefCell<Map>>> {
+        match self.parent.as_ref() {
+            Some(v) => Some(Rc::clone(v)),
+            None => None,
+        }
+    }
+
+    pub fn set_background(&mut self, image: Option<TextureHandle>) {
+        self.image = image;
+    }
+
+    pub fn get_background(&self) -> Option<TextureHandle> {
+        self.image.clone()
+    }
 
     pub fn insert_audio(&mut self, index: usize, audio: Audio) {
         self.audio.insert(index, audio);
@@ -68,5 +98,38 @@ impl Map {
 
     pub fn audio_count(&self) -> usize {
         self.audio.len()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct Point {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Eq for Point {}
+
+impl Ord for Point {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (self.x * self.x + self.y * self.y).total_cmp(&(other.x * other.x + other.y * other.y))
+    }
+
+    fn max(self, other: Self) -> Self {
+        if other < self { self } else { other }
+    }
+
+    fn min(self, other: Self) -> Self {
+        if other < self { other } else { self }
+    }
+
+    fn clamp(self, min: Self, max: Self) -> Self {
+        assert!(min <= max);
+        if self < min {
+            min
+        } else if self > max {
+            max
+        } else {
+            self
+        }
     }
 }

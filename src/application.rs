@@ -26,7 +26,7 @@ use crate::{
 
 pub struct Application {
     storage: Rc<RefCell<dyn Storage>>,
-    map: Rc<RefCell<Map>>,
+    root_map: Rc<RefCell<Map>>,
     player: Rc<RefCell<Player>>,
     selected_compostion: AudioCell,
     current_playing: AudioCell,
@@ -35,12 +35,12 @@ pub struct Application {
 impl Application {
     pub fn new(
         storage: Rc<RefCell<dyn Storage>>,
-        map: Rc<RefCell<Map>>,
+        root_map: Rc<RefCell<Map>>,
         player: Rc<RefCell<Player>>,
     ) -> Application {
         Application {
             storage,
-            map,
+            root_map,
             player,
             selected_compostion: Rc::new(RefCell::new(None)),
             current_playing: Rc::new(RefCell::new(None)),
@@ -59,8 +59,8 @@ impl Application {
         Rc::clone(&self.player)
     }
 
-    pub fn get_map(&self) -> Rc<RefCell<Map>> {
-        Rc::clone(&self.map)
+    pub fn get_root_map(&self) -> Rc<RefCell<Map>> {
+        Rc::clone(&self.root_map)
     }
 
     pub fn get_selected_composition(&self) -> AudioCell {
@@ -123,12 +123,8 @@ impl Application {
         }
     }
 
-    pub fn map_add_composition(&mut self) {
-        self.map.borrow_mut().push_new_audio();
-    }
-
     pub fn save_project(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let map = &self.map.as_ref();
+        let map = &self.root_map.as_ref();
         fs::write(path, toml::to_string(map).unwrap())?;
         Ok(())
     }

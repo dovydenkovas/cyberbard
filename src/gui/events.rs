@@ -14,10 +14,10 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, collections::VecDeque, path::PathBuf, rc::Rc};
+use std::{collections::VecDeque, path::PathBuf};
 
 use crate::{
-    audio::audio::{Audio, RawAudio},
+    audio::audio::{Audio},
     storage::storage::StorageCredentials,
 };
 
@@ -51,5 +51,4 @@ pub enum Event {
     Select {
         audio: Audio,
     },
-    MapNewComposition,
 }

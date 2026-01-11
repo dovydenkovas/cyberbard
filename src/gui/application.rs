@@ -43,7 +43,7 @@ impl ApplicationImp {
     /// Create main window struct
     pub fn new(application: Application) -> ApplicationImp {
         let storage = application.get_storage();
-        let map = application.get_map();
+        let map = application.get_root_map();
         let player = application.get_player();
         let composition = application.get_selected_composition();
         ApplicationImp {
@@ -97,9 +97,6 @@ impl ApplicationImp {
                 Event::Select { audio } => {
                     self.application.set_selected_composition(Some(audio));
                     self.playlist_widget.sync_with_application();
-                }
-                Event::MapNewComposition => {
-                    self.application.map_add_composition();
                 }
                 Event::SaveProject { path } => match self.application.save_project(path) {
                     Ok(_) => (),

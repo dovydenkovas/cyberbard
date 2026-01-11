@@ -151,6 +151,7 @@ impl PlaylistWidget {
             .audio_count();
 
         for i in 0..n {
+            // TODO: set labels clickable to select a track in the playlist.
             let audio: Audio = self
                 .composition
                 .borrow()
