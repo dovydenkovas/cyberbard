@@ -78,7 +78,7 @@ impl Storage for LocalStorage {
                             .collect();
 
                         if let Ok(tag) = id3::Tag::read_from_path(dir_entry.path()) {
-                            // todo: Add artist
+                            // TODO: Add artist
                             // if let Some(artist) = tag.artist() {
                             //     println!("artist: {}", artist);
                             // }
@@ -88,7 +88,8 @@ impl Storage for LocalStorage {
                                 }
                             }
                         }
-
+                        let tag = dir_entry.path().parent().unwrap().components().last().unwrap().as_os_str().to_string_lossy().to_string();
+                        self.attach_tag(title.clone(), tag);
                         sources.push(LocalSource::new(filename, title));
                     }
                 }
@@ -106,20 +107,8 @@ impl Storage for LocalStorage {
         self.sources.len()
     }
 
-    fn attach_tag(&mut self, index: usize, title: String) {
-        todo!()
-    }
-
-    fn unattach_tag(&mut self, index: usize, title: String) {
-        todo!()
-    }
-
-    fn find_by_tag(&self, substr: String) -> Vec<usize> {
-        todo!()
-    }
-
-    fn find_by_title(&self, substr: String) -> Vec<usize> {
-        todo!()
+    fn attach_tag(&mut self, title: String, tag: String) {
+        self.tags.entry(title).or_insert_with(Vec::new).push(Tag::new(tag, "none".to_string()));
     }
 
     fn get_caption(&self) -> String {
@@ -137,6 +126,23 @@ impl Storage for LocalStorage {
                 self.load_sources();
             }
         }
+    }
+
+    fn unattach_tag(&mut self, title: String, tag: String) {
+        todo!()
+    }
+
+    fn find_by_tag(&self, substr: String) -> Vec<String> {
+        todo!()
+    }
+
+    fn find_by_title(&self, substr: String) -> Vec<String> {
+        todo!()
+    }
+
+    fn get_tags(&self, index: usize) -> std::slice::Iter<Tag> {
+        let title = self.sources[index].as_ref().get_title();
+        self.tags[&title].iter()
     }
 }
 

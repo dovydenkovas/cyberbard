@@ -16,7 +16,7 @@
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use egui::{Label, Sense, Ui};
+use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
@@ -28,15 +28,13 @@ use crate::{
 struct Music {
     index: usize,
     title: String,
-    tags: Vec<String>,
 }
 
 impl Music {
-    fn new(index: usize, title: String, tags: Vec<String>) -> Music {
+    fn new(index: usize, title: String) -> Music {
         Music {
             index,
             title: title.to_string(),
-            tags: tags.iter().map(|x| x.to_string()).collect(),
         }
     }
 }
@@ -69,7 +67,6 @@ impl StorageWidget {
             self.music.push(Music::new(
                 i,
                 self.storage.borrow().get(i).unwrap().get_title(),
-                vec![],
             ));
         }
         self.caption = self.storage.borrow().get_caption();
@@ -101,10 +98,8 @@ impl StorageWidget {
         self.shown_music.clear();
         for i in 0..self.music.len() {
             if self.music[i].title.to_lowercase().contains(&pattern)
-                || self.music[i]
-                    .tags
-                    .iter()
-                    .any(|tag| tag.to_lowercase().contains(&pattern))
+                || self.storage.borrow().get_tags(self.music[i].index)
+                    .any(|tag| tag.get_text().to_lowercase().contains(&pattern))
             {
                 self.shown_music.push(i);
             }
@@ -181,14 +176,14 @@ impl StorageWidget {
                 if ui.button("+".to_string()).clicked() {
                     self.send_source_to_map(source, events);
                 }
-                for tag in &source.tags {
+                for tag in self.storage.borrow().get_tags(source.index) {
                     let frame = egui::Frame::new()
-                        .fill(egui::Color32::from_rgb(0, 40, 0))
+                        .fill(Color32::from_hex(&tag.get_color()).unwrap())
                         .corner_radius(5)
                         .inner_margin(egui::Margin::same(2));
 
                     frame.show(ui, |ui| {
-                        ui.add(Label::new(tag));
+                        ui.add(Label::new(&tag.get_text()));
                     });
                 }
             });

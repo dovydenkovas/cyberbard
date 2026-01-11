@@ -68,7 +68,6 @@ impl RawAudio for Composition {
         let mut stream = Stream::new(vec![], self.volume);
         let mut is_none = true;
         for audio in self.audios.iter() {
-            println!("{}", audio.borrow().get_title());
             match audio.borrow().get_stream() {
                 Some(s) => {
                     stream.merge(s);

@@ -77,7 +77,6 @@ impl Application {
 
     pub fn player_set_audio(&mut self, audio: Audio) {
         self.current_playing.replace(Some(Rc::clone(&audio)));
-        println!("Select comp;");
         if let Some(s) = audio.borrow().get_stream() {
             self.player.borrow_mut().set_stream(s);
             self.player

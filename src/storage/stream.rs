@@ -93,8 +93,6 @@ impl Playlist {
             unreachable!("Empty sources replacement");
         }
 
-        println!("{}", self.sources.len());
-
         while self.current > sources.len() {
             self.current -= 1;
         }
@@ -106,7 +104,6 @@ impl Playlist {
         if !self.is_stopped {
             self.play();
         }
-        println!("{}", self.sources.len());
     }
 
     pub fn play(&mut self) {

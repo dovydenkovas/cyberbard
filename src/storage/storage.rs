@@ -16,6 +16,8 @@
 
 use std::path::PathBuf;
 
+use crate::storage::tag::Tag;
+
 use super::source::Source;
 
 pub enum StorageCredentials {
@@ -29,9 +31,10 @@ pub trait Storage {
     fn load_sources(&mut self);
     fn setup_storage(&mut self, cred: StorageCredentials);
     fn get(&self, index: usize) -> Option<Box<dyn Source>>;
+    fn get_tags(&self, index: usize) -> std::slice::Iter<Tag>;
     fn len(&self) -> usize;
-    fn attach_tag(&mut self, index: usize, title: String);
-    fn unattach_tag(&mut self, index: usize, title: String);
-    fn find_by_tag(&self, substr: String) -> Vec<usize>;
-    fn find_by_title(&self, substr: String) -> Vec<usize>;
+    fn attach_tag(&mut self, title: String, tag: String);
+    fn unattach_tag(&mut self, title: String, tag: String);
+    fn find_by_tag(&self, substr: String) -> Vec<String>;
+    fn find_by_title(&self, substr: String) -> Vec<String>;
 }

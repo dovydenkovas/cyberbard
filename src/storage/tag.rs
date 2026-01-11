@@ -54,7 +54,7 @@ impl Tag {
         } else if self.is_correct_color(&self.color) {
             // Skip is correct color
         } else {
-            self.color = "#2F80ED".to_string()
+            self.color = "#092032".to_string()
         }
     }
 
