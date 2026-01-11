@@ -26,16 +26,14 @@ use crate::{
 };
 
 struct Music {
-    shown: bool,
     index: usize,
     title: String,
     tags: Vec<String>,
 }
 
 impl Music {
-    fn new(shown: bool, index: usize, title: String, tags: Vec<String>) -> Music {
+    fn new(index: usize, title: String, tags: Vec<String>) -> Music {
         Music {
-            shown,
             index,
             title: title.to_string(),
             tags: tags.iter().map(|x| x.to_string()).collect(),
@@ -47,6 +45,7 @@ pub struct StorageWidget {
     caption: String,
     search_pattern: String,
     music: Vec<Music>,
+    shown_music: Vec<usize>,
     storage: Rc<RefCell<dyn Storage>>,
 }
 
@@ -57,6 +56,7 @@ impl StorageWidget {
             search_pattern: "".to_string(),
             music: vec![],
             storage,
+            shown_music: vec![],
         };
         widget.sync_with_storage();
         widget
@@ -67,7 +67,6 @@ impl StorageWidget {
         let n = self.storage.borrow().len();
         for i in 0..n {
             self.music.push(Music::new(
-                true,
                 i,
                 self.storage.borrow().get(i).unwrap().get_title(),
                 vec![],
@@ -98,10 +97,17 @@ impl StorageWidget {
     }
 
     fn search(&mut self) {
-        let pattern = self.search_pattern.as_str();
-        for source in &mut self.music {
-            source.shown = source.title.contains(pattern)
-                || source.tags.iter().any(|tag| tag.contains(pattern));
+        let pattern = self.search_pattern.clone().to_lowercase();
+        self.shown_music.clear();
+        for i in 0..self.music.len() {
+            if self.music[i].title.to_lowercase().contains(&pattern)
+                || self.music[i]
+                    .tags
+                    .iter()
+                    .any(|tag| tag.to_lowercase().contains(&pattern))
+            {
+                self.shown_music.push(i);
+            }
         }
     }
 
@@ -144,23 +150,30 @@ impl StorageWidget {
         });
 
         ui.add_space(10.0);
-        egui::ScrollArea::vertical()
-            .auto_shrink(false)
-            .show(ui, |ui| {
-                for source in &self.music {
-                    if source.shown {
-                        self.render_music(ui, source, events);
-                    }
+        let text_style = egui::TextStyle::Body;
+        let row_height = ui.text_style_height(&text_style);
+
+        egui::ScrollArea::vertical().vscroll(true).auto_shrink(false).show_rows(
+            ui,
+            row_height,
+            self.shown_music.len(),
+            |ui, range| {
+                for i in range {
+                    let source = &self.music[self.shown_music[i]];
+                    self.render_music(ui, source, events);
                 }
-            });
+            },
+        );
     }
 
     fn render_music(&self, ui: &mut Ui, source: &Music, events: &mut Events) {
         ui.horizontal(|ui| {
-            let title_label = Label::new(&source.title).sense(Sense::click()).selectable(false);
+            let title_label = Label::new(&source.title)
+                .sense(Sense::click())
+                .selectable(false);
             let ui_label = ui.add(title_label);
             if ui_label.clicked() {
-               self.send_source_to_player(source, events);
+                self.send_source_to_player(source, events);
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
