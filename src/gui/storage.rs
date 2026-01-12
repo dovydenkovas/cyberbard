@@ -16,7 +16,7 @@
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use egui::{Color32, Label, RichText, Sense, Ui};
+use egui::{Color32, Label, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
@@ -25,26 +25,12 @@ use crate::{
     storage::storage::{Storage, StorageCredentials},
 };
 
-struct Music {
-    index: usize,
-    title: String,
-}
-
-impl Music {
-    fn new(index: usize, title: String) -> Music {
-        Music {
-            index,
-            title: title.to_string(),
-        }
-    }
-}
-
 pub struct StorageWidget {
     caption: String,
     search_pattern: String,
-    music: Vec<Music>,
     shown_music: Vec<usize>,
     storage: Rc<RefCell<dyn Storage>>,
+    edit_track_index: Option<usize>,
 }
 
 impl StorageWidget {
@@ -52,24 +38,15 @@ impl StorageWidget {
         let mut widget = StorageWidget {
             caption: "".to_string(),
             search_pattern: "".to_string(),
-            music: vec![],
             storage,
             shown_music: vec![],
+            edit_track_index: None,
         };
         widget.sync_with_storage();
         widget
     }
 
     pub fn sync_with_storage(&mut self) {
-        self.music.clear();
-        let n = self.storage.borrow().len();
-        for i in 0..n {
-            self.music.push(Music::new(
-                i,
-                self.storage.borrow().get(i).unwrap().get_title(),
-            ));
-        }
-        self.caption = self.storage.borrow().get_caption();
         self.search();
     }
 
@@ -96,9 +73,20 @@ impl StorageWidget {
     fn search(&mut self) {
         let pattern = self.search_pattern.clone().to_lowercase();
         self.shown_music.clear();
-        for i in 0..self.music.len() {
-            if self.music[i].title.to_lowercase().contains(&pattern)
-                || self.storage.borrow().get_tags(self.music[i].index)
+        for i in 0..self.storage.borrow().len() {
+            if self
+                .storage
+                .borrow()
+                .get(i)
+                .unwrap()
+                .as_ref()
+                .get_title()
+                .to_lowercase()
+                .contains(&pattern)
+                || self
+                    .storage
+                    .borrow()
+                    .get_tags(i)
                     .any(|tag| tag.get_text().to_lowercase().contains(&pattern))
             {
                 self.shown_music.push(i);
@@ -106,20 +94,24 @@ impl StorageWidget {
         }
     }
 
-    fn send_source_to_player(&self, source: &Music, events: &mut Events) {
+    fn send_source_to_player(&self, index: usize, events: &mut Events) {
         let audio = Rc::new(RefCell::new(Track::new(
-            self.storage.borrow().get(source.index).unwrap(),
+            self.storage.borrow().get(index).unwrap(),
         )));
         events.push_back(Event::Play { audio });
     }
 
-    fn send_source_to_map(&self, source: &Music, events: &mut Events) {
-        let source = self.storage.borrow().get(source.index).unwrap();
+    fn send_source_to_map(&self, index: usize, events: &mut Events) {
+        let source = self.storage.borrow().get(index).unwrap();
         let audio = Rc::new(RefCell::new(Track::new(source)));
         events.push_back(Event::AddAudioToComposition { audio });
     }
 
-    pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
+    pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
+        if let Some(index) = self.edit_track_index {
+            self.render_edit_track_dialog(ctx, ui, index, events);
+        }
+
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             if ui.button("🗁".to_string()).clicked() {
@@ -148,46 +140,85 @@ impl StorageWidget {
         let text_style = egui::TextStyle::Body;
         let row_height = ui.text_style_height(&text_style);
 
-        egui::ScrollArea::vertical().vscroll(true).auto_shrink(false).show_rows(
-            ui,
-            row_height,
-            self.shown_music.len(),
-            |ui, range| {
+        egui::ScrollArea::vertical()
+            .vscroll(true)
+            .auto_shrink(false)
+            .show_rows(ui, row_height, self.shown_music.len(), |ui, range| {
                 for i in range {
-                    let source = &self.music[self.shown_music[i]];
-                    self.render_music(ui, source, events);
+                    let new_search_pattern = self.render_music(ui, self.shown_music[i], events);
+                    if let Some(pattern) = new_search_pattern {
+                        self.search_pattern = pattern;
+                        self.search();
+                        break;
+                    }
                 }
-            },
-        );
+            });
     }
 
-    fn render_music(&self, ui: &mut Ui, source: &Music, events: &mut Events) {
+    /// Display one track. Could return new search pattern
+    fn render_music(&mut self, ui: &mut Ui, index: usize, events: &mut Events) -> Option<String> {
+        let mut new_search_pattern = None;
         ui.horizontal(|ui| {
-            let title_label = Label::new(&source.title)
+            let title_label = Label::new(&self.storage.borrow().get(index).unwrap().get_title())
                 .sense(Sense::click())
                 .selectable(false);
             let ui_label = ui.add(title_label);
             if ui_label.clicked() {
-                self.send_source_to_player(source, events);
+                self.send_source_to_player(index, events);
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(20.0);
                 if ui.button("+".to_string()).clicked() {
-                    self.send_source_to_map(source, events);
+                    self.send_source_to_map(index, events);
                 }
-                for tag in self.storage.borrow().get_tags(source.index) {
+
+                for tag in self.storage.borrow().get_tags(index) {
                     let frame = egui::Frame::new()
                         .fill(Color32::from_hex(&tag.get_color()).unwrap())
                         .corner_radius(5)
                         .inner_margin(egui::Margin::same(2));
 
                     frame.show(ui, |ui| {
-                        ui.add(Label::new(&tag.get_text()));
+                        let response = ui.add(Label::new(&tag.get_text()));
+
+                        // Search tag on clicked.
+                        if response.clicked() {
+                            new_search_pattern = Some(tag.get_text());
+                        }
+
+                        if response.secondary_clicked() {
+                            self.edit_track_index = Some(index);
+                        }
                     });
                 }
             });
         });
         ui.add_space(3.0);
+        new_search_pattern
+    }
+
+    fn render_edit_track_dialog(
+        &mut self,
+        ctx: &egui::Context,
+        ui: &mut Ui,
+        index: usize,
+        events: &mut Events,
+    ) {
+        egui::Window::new("Настройка тегов")
+            .resizable(true)
+            .default_size(egui::vec2(300.0, 200.0))
+            .show(ctx, |ui| {
+                let index = self.edit_track_index.unwrap();
+
+                ui.heading(format!(
+                    "Теги для {}",
+                    self.storage.borrow().get(index).unwrap().get_title()
+                ));
+
+                if ui.button("OK").clicked() {
+                    self.edit_track_index = None;
+                }
+            });
     }
 }

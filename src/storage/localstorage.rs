@@ -88,7 +88,16 @@ impl Storage for LocalStorage {
                                 }
                             }
                         }
-                        let tag = dir_entry.path().parent().unwrap().components().last().unwrap().as_os_str().to_string_lossy().to_string();
+                        let tag = dir_entry
+                            .path()
+                            .parent()
+                            .unwrap()
+                            .components()
+                            .last()
+                            .unwrap()
+                            .as_os_str()
+                            .to_string_lossy()
+                            .to_string();
                         self.attach_tag(title.clone(), tag);
                         sources.push(LocalSource::new(filename, title));
                     }
@@ -108,7 +117,10 @@ impl Storage for LocalStorage {
     }
 
     fn attach_tag(&mut self, title: String, tag: String) {
-        self.tags.entry(title).or_insert_with(Vec::new).push(Tag::new(tag, "none".to_string()));
+        self.tags
+            .entry(title)
+            .or_insert_with(Vec::new)
+            .push(Tag::new(tag, "none".to_string()));
     }
 
     fn get_caption(&self) -> String {
