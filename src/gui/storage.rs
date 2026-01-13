@@ -16,7 +16,8 @@
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use egui::{Color32, Label, Sense, Ui};
+use egui::{Color32, Label, RichText, Sense, Ui, color_picker::color_edit_button_rgb};
+use egui_extras::{Column, TableBuilder};
 use rfd::FileDialog;
 
 use crate::{
@@ -25,12 +26,19 @@ use crate::{
     storage::storage::{Storage, StorageCredentials},
 };
 
+struct EditTag {
+    pub title: String,
+    pub color: Color32,
+    pub show_picker: bool,
+}
+
 pub struct StorageWidget {
     caption: String,
     search_pattern: String,
     shown_music: Vec<usize>,
     storage: Rc<RefCell<dyn Storage>>,
     edit_track_index: Option<usize>,
+    edit_tag: Option<EditTag>,
 }
 
 impl StorageWidget {
@@ -41,13 +49,14 @@ impl StorageWidget {
             storage,
             shown_music: vec![],
             edit_track_index: None,
+            edit_tag: None,
         };
         widget.sync_with_storage();
         widget
     }
 
     pub fn sync_with_storage(&mut self) {
-        self.search();
+        self.find();
     }
 
     fn open_project(&mut self, events: &mut Events) {
@@ -70,28 +79,9 @@ impl StorageWidget {
         });
     }
 
-    fn search(&mut self) {
-        let pattern = self.search_pattern.clone().to_lowercase();
-        self.shown_music.clear();
-        for i in 0..self.storage.borrow().len() {
-            if self
-                .storage
-                .borrow()
-                .get(i)
-                .unwrap()
-                .as_ref()
-                .get_title()
-                .to_lowercase()
-                .contains(&pattern)
-                || self
-                    .storage
-                    .borrow()
-                    .get_tags(i)
-                    .any(|tag| tag.get_text().to_lowercase().contains(&pattern))
-            {
-                self.shown_music.push(i);
-            }
-        }
+    fn find(&mut self) {
+        let pattern = self.search_pattern.clone();
+        self.shown_music = self.storage.borrow().find(pattern);
     }
 
     fn send_source_to_player(&self, index: usize, events: &mut Events) {
@@ -132,7 +122,7 @@ impl StorageWidget {
             let search =
                 egui::TextEdit::singleline(&mut self.search_pattern).hint_text("Название или тег");
             if ui.add(search).changed() {
-                self.search();
+                self.find();
             }
         });
 
@@ -148,7 +138,7 @@ impl StorageWidget {
                     let new_search_pattern = self.render_music(ui, self.shown_music[i], events);
                     if let Some(pattern) = new_search_pattern {
                         self.search_pattern = pattern;
-                        self.search();
+                        self.find();
                         break;
                     }
                 }
@@ -173,6 +163,7 @@ impl StorageWidget {
                     self.send_source_to_map(index, events);
                 }
 
+                let mut total_length = 0;
                 for tag in self.storage.borrow().get_tags(index) {
                     let frame = egui::Frame::new()
                         .fill(Color32::from_hex(&tag.get_color()).unwrap())
@@ -180,7 +171,13 @@ impl StorageWidget {
                         .inner_margin(egui::Margin::same(2));
 
                     frame.show(ui, |ui| {
-                        let response = ui.add(Label::new(&tag.get_text()));
+                        let response = if total_length > 20 {
+                            ui.add(Label::new("   ").sense(Sense::hover()))
+                                .on_hover_text(&tag.get_text())
+                        } else {
+                            total_length += tag.get_text().len();
+                            ui.add(Label::new(&tag.get_text()))
+                        };
 
                         // Search tag on clicked.
                         if response.clicked() {
@@ -215,10 +212,72 @@ impl StorageWidget {
                     "Теги для {}",
                     self.storage.borrow().get(index).unwrap().get_title()
                 ));
+                ui.separator();
 
-                if ui.button("OK").clicked() {
-                    self.edit_track_index = None;
-                }
+                let tags = self.storage.borrow().all_tags(index);
+                egui::ScrollArea::vertical().vscroll(true).show(ui, |ui| {
+                    for (tag, mut is_checked) in tags {
+                        ui.horizontal(|ui| {
+                            // attach unattach tag
+                            if ui.checkbox(&mut is_checked, "").changed() {
+                                if is_checked {
+                                    self.storage.borrow_mut().attach_tag(index, tag.get_text());
+                                } else {
+                                    self.storage
+                                        .borrow_mut()
+                                        .unattach_tag(index, tag.get_text());
+                                }
+                            }
+
+                            // Pick color
+                            let color = Color32::from_hex(&tag.get_color()).unwrap();
+                            let mut col = [color.r(), color.g(), color.b()];
+
+                            if ui.color_edit_button_srgb(&mut col).changed() {
+                                let color = Color32::from_rgb_additive(col[0], col[1], col[2]);
+                                self.storage.borrow_mut().set_tag_color(
+                                    tag.get_text(),
+                                    color.to_hex().chars().take(7).collect(),
+                                );
+                            }
+
+                            // TODO: change tag text
+                            let frame = egui::Frame::new()
+                                .fill(Color32::from_hex(&tag.get_color()).unwrap())
+                                .corner_radius(5)
+                                .inner_margin(egui::Margin::same(2));
+
+                            let mut text = tag.get_text();
+                            frame.show(ui, |ui| {
+                                if ui.text_edit_singleline(&mut text).changed() {
+                                    println!("Rename");
+                                }
+                            });
+
+                            // TODO: add remove tag
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui
+                                        .label(RichText::new("x".to_string()).color(Color32::RED))
+                                        .clicked()
+                                    {
+                                        println!("Remove tag")
+                                    }
+                                },
+                            );
+                        });
+                    }
+                });
+
+                ui.vertical_centered(|ui| if ui.button("Добавить тег").clicked() {});
+
+                ui.separator();
+                ui.vertical_centered_justified(|ui| {
+                    if ui.button("Готово").clicked() {
+                        self.edit_track_index = None;
+                    }
+                });
             });
     }
 }

@@ -30,6 +30,8 @@ use walkdir::WalkDir;
 
 type BSource = Box<dyn super::source::Source>;
 
+type TagIndexes = Vec<usize>;
+
 /// Storage of audio sources, that read audio files from local disk.
 /// Open stream from .mp3, .ogg and so on files.
 #[derive(Serialize)]
@@ -37,14 +39,15 @@ pub struct LocalStorage {
     storage_path: PathBuf,
     caption: String,
     sources: Vec<BSource>,
-    tags: HashMap<String, Vec<Tag>>,
+    tags: Vec<Tag>,
+    sources_tags: Vec<TagIndexes>,
 }
 
 fn is_music_file(filename: &str) -> bool {
-    filename.ends_with(".mp3")
-        || filename.ends_with(".MP3")
-        || filename.ends_with(".ogg")
-        || filename.ends_with(".flac")
+    let filename = filename.to_lowercase();
+    vec![".mp3", ".flac", ".wav", ".ogg"]
+        .iter()
+        .any(|x| filename.ends_with(x))
 }
 
 impl LocalStorage {
@@ -53,7 +56,8 @@ impl LocalStorage {
             storage_path: PathBuf::from(&storage_path),
             caption: storage_path,
             sources: vec![],
-            tags: HashMap::new(),
+            tags: vec![],
+            sources_tags: vec![],
         };
         storage.load_sources();
         storage
@@ -62,8 +66,8 @@ impl LocalStorage {
 
 impl Storage for LocalStorage {
     fn load_sources(&mut self) {
-        let mut sources = vec![];
-        self.tags.clear();
+        self.sources.clear();
+        self.sources_tags.clear();
         for entry in WalkDir::new(self.storage_path.clone()) {
             match entry {
                 Ok(dir_entry) => {
@@ -98,14 +102,13 @@ impl Storage for LocalStorage {
                             .as_os_str()
                             .to_string_lossy()
                             .to_string();
-                        self.attach_tag(title.clone(), tag);
-                        sources.push(LocalSource::new(filename, title));
+                        self.sources.push(LocalSource::new(filename, title));
+                        self.attach_tag(self.sources.len() - 1, tag);
                     }
                 }
                 Err(_) => (),
             }
         }
-        self.sources = sources;
     }
 
     fn get(&self, index: usize) -> Option<BSource> {
@@ -116,11 +119,24 @@ impl Storage for LocalStorage {
         self.sources.len()
     }
 
-    fn attach_tag(&mut self, title: String, tag: String) {
-        self.tags
-            .entry(title)
-            .or_insert_with(Vec::new)
-            .push(Tag::new(tag, "none".to_string()));
+    fn attach_tag(&mut self, index: usize, tag: String) {
+        if self.sources.len() != self.sources_tags.len() {
+            self.sources_tags.resize(self.sources.len(), Vec::new());
+        }
+
+        if index >= self.sources_tags.len() {
+            return;
+        }
+
+        let i = self.tags.iter().position(|t| t.get_text() == tag);
+
+        if let Some(i) = i {
+            self.sources_tags[index].push(i);
+        } else {
+            self.sources_tags[index].push(self.tags.len());
+            self.tags.push(Tag::new(tag));
+        }
+        // println!("{:?}", self.tags)
     }
 
     fn get_caption(&self) -> String {
@@ -140,21 +156,58 @@ impl Storage for LocalStorage {
         }
     }
 
-    fn unattach_tag(&mut self, title: String, tag: String) {
-        todo!()
+    fn unattach_tag(&mut self, index: usize, tag: String) {
+        let i = self.tags.iter().position(|t| t.get_text() == tag);
+
+        if let Some(i) = i {
+            self.sources_tags[index].retain(|x| *x != i);
+        }
     }
 
-    fn find_by_tag(&self, substr: String) -> Vec<String> {
-        todo!()
+    fn set_tag_color(&mut self, title: String, color: String) {
+        for tag in &mut self.tags {
+            if tag.get_text() == title {
+                tag.set_color(color);
+                break;
+            }
+        }
     }
 
-    fn find_by_title(&self, substr: String) -> Vec<String> {
-        todo!()
+    fn find(&self, substr: String) -> Vec<usize> {
+        let pattern = substr.to_lowercase();
+        let mut matched = Vec::with_capacity(self.sources.len());
+        for i in 0..self.sources.len() {
+            let title = &self.sources[i].get_title();
+            if title.to_lowercase().contains(&pattern)
+                || self.sources_tags[i]
+                    .iter()
+                    .any(|i| self.tags[*i].get_text().to_lowercase().contains(&pattern))
+            {
+                matched.push(i);
+            }
+        }
+        matched
     }
 
-    fn get_tags(&self, index: usize) -> std::slice::Iter<Tag> {
-        let title = self.sources[index].as_ref().get_title();
-        self.tags[&title].iter()
+    fn get_tags(&self, index: usize) -> Vec<&Tag> {
+        if index >= self.sources.len() {
+            return vec![];
+        }
+        self.sources_tags[index]
+            .iter()
+            .map(|i| &self.tags[*i])
+            .collect()
+    }
+
+    fn all_tags(&self, source_index: usize) -> Vec<(Tag, bool)> {
+        let mut res = vec![];
+        for i in 0..self.tags.len() {
+            res.push((
+                self.tags[i].clone(),
+                self.sources_tags[source_index].contains(&i),
+            ));
+        }
+        res
     }
 }
 

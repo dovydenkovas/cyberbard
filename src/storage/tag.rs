@@ -14,23 +14,36 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use rand::TryRngCore;
 use serde::{Deserialize, Serialize};
 
 /// Tag structures. Used to Sources in Storage classification.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tag {
     text: String,
     color: String,
 }
 
+fn rand_color() -> String {
+    // TODO: Generate beautiful random colors
+    let mut bytes = [0u8; 3];
+    let _ = rand::rngs::OsRng.try_fill_bytes(&mut bytes);
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        bytes[0] / 4,
+        bytes[1] / 4,
+        bytes[2] / 4
+    )
+}
+
 impl Tag {
-    pub fn new(text: String, color: String) -> Tag {
+    pub fn new(text: String) -> Tag {
         let mut tag = Tag {
             text: String::new(),
             color: String::new(),
         };
         tag.set_text(text);
-        tag.set_color(color);
+        tag.set_color(rand_color());
         tag
     }
 
@@ -38,9 +51,9 @@ impl Tag {
         self.text.clone()
     }
 
-    /// unicode string 25 chars max.
+    /// unicode string 30 chars max.
     pub fn set_text(&mut self, text: String) {
-        self.text = text.chars().take(25).collect()
+        self.text = text.chars().take(30).collect()
     }
 
     pub fn get_color(&self) -> String {
@@ -97,14 +110,14 @@ mod tests {
 
     #[test]
     fn tag_text() {
-        let mut tag = Tag::new("some text".to_string(), "#fafafa".to_string());
+        let mut tag = Tag::new("some text".to_string());
         assert_eq!("some text", tag.get_text());
 
-        // 25 chars max
-        tag.set_text("123456789012345678901234567890".to_string());
-        assert_eq!("1234567890123456789012345", tag.get_text());
+        // 30 chars max
+        tag.set_text("1234567890123456789012345678901234567890".to_string());
+        assert_eq!("123456789012345678901234567890", tag.get_text());
 
-        // utf8 25 chars max
+        // utf8 30 chars max
         tag.set_text("абвгд ёЁ 123 __ 0 jlkdsjg".to_string());
         assert_eq!("абвгд ёЁ 123 __ 0 jlkdsjg", tag.get_text());
     }
@@ -112,8 +125,7 @@ mod tests {
     #[test]
     fn tag_color() {
         // default color
-        let mut tag = Tag::new("some text".to_string(), "".to_string());
-        assert_eq!("#2F80ED", tag.get_color());
+        let mut tag = Tag::new("some text".to_string());
 
         // correct color
         tag.set_color("#fa0055".to_string());
