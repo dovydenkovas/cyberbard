@@ -47,6 +47,14 @@ impl Tag {
         tag
     }
 
+    pub fn random() -> Tag {
+        let txt = rand_color();
+        Tag {
+            text: txt.clone(),
+            color: txt.clone(),
+        }
+    }
+
     pub fn get_text(&self) -> String {
         self.text.clone()
     }

@@ -36,6 +36,9 @@ pub trait Storage {
     fn len(&self) -> usize;
     fn attach_tag(&mut self, index: usize, tag: String);
     fn unattach_tag(&mut self, index: usize, tag: String);
+    fn rename_tag(&mut self, old_name: String, new_name: String);
+    fn remove_tag(&mut self, name: String);
+    fn add_tag(&mut self);
     fn set_tag_color(&mut self, tag: String, color: String);
     fn find(&self, substr: String) -> Vec<usize>;
 }

@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time;
 
 use crate::storage::storage::StorageCredentials;
 use crate::storage::stream::Stream;
@@ -162,6 +163,44 @@ impl Storage for LocalStorage {
         if let Some(i) = i {
             self.sources_tags[index].retain(|x| *x != i);
         }
+    }
+
+    fn rename_tag(&mut self, old_name: String, new_name: String) {
+        // Not allowed set empty name or existing name.
+        if new_name.trim().len() == 0
+            || self
+                .tags
+                .iter()
+                .find(|t| t.get_text() == new_name)
+                .is_some()
+        {
+            return;
+        }
+
+        for tag in &mut self.tags {
+            if tag.get_text() == old_name {
+                tag.set_text(new_name);
+                break;
+            }
+        }
+    }
+
+    fn remove_tag(&mut self, name: String) {
+        if let Some(index) = self.tags.iter().position(|t| t.get_text() == name) {
+            for tags in &mut self.sources_tags {
+                tags.retain(|&i| i != index);
+                for i in 0..tags.len() {
+                    if tags[i] > index {
+                        tags[i] -= 1;
+                    }
+                }
+            }
+        }
+        self.tags.retain(|t| t.get_text() != name);
+    }
+
+    fn add_tag(&mut self) {
+        self.tags.push(Tag::random());
     }
 
     fn set_tag_color(&mut self, title: String, color: String) {

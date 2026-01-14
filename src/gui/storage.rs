@@ -128,7 +128,7 @@ impl StorageWidget {
 
         ui.add_space(10.0);
         let text_style = egui::TextStyle::Body;
-        let row_height = ui.text_style_height(&text_style);
+        let row_height = ui.text_style_height(&text_style) + 4.0;
 
         egui::ScrollArea::vertical()
             .vscroll(true)
@@ -165,6 +165,7 @@ impl StorageWidget {
 
                 let mut total_length = 0;
                 for tag in self.storage.borrow().get_tags(index) {
+                    // TODO: contrasting background and text colors
                     let frame = egui::Frame::new()
                         .fill(Color32::from_hex(&tag.get_color()).unwrap())
                         .corner_radius(5)
@@ -198,16 +199,14 @@ impl StorageWidget {
     fn render_edit_track_dialog(
         &mut self,
         ctx: &egui::Context,
-        ui: &mut Ui,
+        _ui: &mut Ui,
         index: usize,
-        events: &mut Events,
+        _events: &mut Events,
     ) {
         egui::Window::new("Настройка тегов")
             .resizable(true)
             .default_size(egui::vec2(300.0, 200.0))
             .show(ctx, |ui| {
-                let index = self.edit_track_index.unwrap();
-
                 ui.heading(format!(
                     "Теги для {}",
                     self.storage.borrow().get(index).unwrap().get_title()
@@ -215,62 +214,67 @@ impl StorageWidget {
                 ui.separator();
 
                 let tags = self.storage.borrow().all_tags(index);
-                egui::ScrollArea::vertical().vscroll(true).show(ui, |ui| {
-                    for (tag, mut is_checked) in tags {
-                        ui.horizontal(|ui| {
-                            // attach unattach tag
-                            if ui.checkbox(&mut is_checked, "").changed() {
-                                if is_checked {
-                                    self.storage.borrow_mut().attach_tag(index, tag.get_text());
-                                } else {
-                                    self.storage
-                                        .borrow_mut()
-                                        .unattach_tag(index, tag.get_text());
-                                }
-                            }
-
-                            // Pick color
-                            let color = Color32::from_hex(&tag.get_color()).unwrap();
-                            let mut col = [color.r(), color.g(), color.b()];
-
-                            if ui.color_edit_button_srgb(&mut col).changed() {
-                                let color = Color32::from_rgb_additive(col[0], col[1], col[2]);
-                                self.storage.borrow_mut().set_tag_color(
-                                    tag.get_text(),
-                                    color.to_hex().chars().take(7).collect(),
-                                );
-                            }
-
-                            // TODO: change tag text
-                            let frame = egui::Frame::new()
-                                .fill(Color32::from_hex(&tag.get_color()).unwrap())
-                                .corner_radius(5)
-                                .inner_margin(egui::Margin::same(2));
-
-                            let mut text = tag.get_text();
-                            frame.show(ui, |ui| {
-                                if ui.text_edit_singleline(&mut text).changed() {
-                                    println!("Rename");
-                                }
-                            });
-
-                            // TODO: add remove tag
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if ui
-                                        .label(RichText::new("x".to_string()).color(Color32::RED))
-                                        .clicked()
-                                    {
-                                        println!("Remove tag")
+                egui::ScrollArea::vertical()
+                    .max_height(400.0)
+                    .vscroll(true)
+                    .show(ui, |ui| {
+                        for (tag, mut is_checked) in tags {
+                            ui.horizontal(|ui| {
+                                // attach unattach tag
+                                if ui.checkbox(&mut is_checked, "").changed() {
+                                    if is_checked {
+                                        self.storage.borrow_mut().attach_tag(index, tag.get_text());
+                                    } else {
+                                        self.storage
+                                            .borrow_mut()
+                                            .unattach_tag(index, tag.get_text());
                                     }
-                                },
-                            );
-                        });
+                                }
+
+                                // Pick color
+                                let color = Color32::from_hex(&tag.get_color()).unwrap();
+                                let mut col = [color.r(), color.g(), color.b()];
+
+                                if ui.color_edit_button_srgb(&mut col).changed() {
+                                    let color = Color32::from_rgb_additive(col[0], col[1], col[2]);
+                                    self.storage.borrow_mut().set_tag_color(
+                                        tag.get_text(),
+                                        color.to_hex().chars().take(7).collect(),
+                                    );
+                                }
+
+                                // Change tag text
+                                let frame = egui::Frame::new()
+                                    .fill(Color32::from_hex(&tag.get_color()).unwrap())
+                                    .corner_radius(5)
+                                    .inner_margin(egui::Margin::same(2));
+
+                                let mut text = tag.get_text();
+                                frame.show(ui, |ui| {
+                                    if ui.text_edit_singleline(&mut text).changed() {
+                                        self.storage.borrow_mut().rename_tag(tag.get_text(), text);
+                                    }
+                                });
+
+                                // Remove tag
+                                if ui
+                                    .label(RichText::new("x".to_string()).color(Color32::RED))
+                                    .clicked()
+                                {
+                                    self.storage.borrow_mut().remove_tag(tag.get_text());
+                                }
+                                ui.add_space(20.0);
+                            });
+                        }
+                    });
+
+                ui.add_space(10.0);
+                ui.vertical_centered(|ui| {
+                    if ui.button("Добавить тег").clicked() {
+                        self.storage.borrow_mut().add_tag();
                     }
                 });
-
-                ui.vertical_centered(|ui| if ui.button("Добавить тег").clicked() {});
+                ui.add_space(10.0);
 
                 ui.separator();
                 ui.vertical_centered_justified(|ui| {
