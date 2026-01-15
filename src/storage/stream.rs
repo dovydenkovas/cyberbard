@@ -192,8 +192,8 @@ impl Stream {
         }
     }
 
-    pub fn set_partial_volume(&mut self, volume: f32, playlist_index: usize, audio_index: usize) {
-        self.playlists[playlist_index].set_partial_volume(volume, audio_index);
+    pub fn set_partial_volume(&mut self, volume: f32, playlist: usize, audio_index: usize) {
+        self.playlists[playlist].set_partial_volume(volume, audio_index);
     }
 
     pub fn is_empty(&self) -> bool {

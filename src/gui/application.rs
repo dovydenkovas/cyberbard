@@ -88,11 +88,11 @@ impl ApplicationImp {
                 Event::PlayerSetVolume { volume } => self.application.player_set_volume(volume),
                 Event::PlayerSetTrackVolume {
                     volume,
-                    playlist,
+                    playlist_index,
                     index,
                 } => self
                     .application
-                    .player_set_track_volume(volume, playlist, index),
+                    .player_set_track_volume(volume, playlist_index, index),
 
                 Event::Select { audio } => {
                     self.application.set_selected_composition(Some(audio));

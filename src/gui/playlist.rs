@@ -16,82 +16,62 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use egui::{Label, Sense, Ui};
+use egui::{Label, Sense, Slider, TextEdit, Ui};
 
 use crate::{
     audio::audio::{Audio, RawAudio},
     gui::{
         events::{Event, Events},
-        widgets::{EditableHeader, EditableSlider},
+        widgets::EditableHeader,
     },
 };
-
-enum Action {
-    Remove(usize),
-    Sync,
-}
 
 pub struct PlaylistWidget {
     title: EditableHeader,
     composition: Rc<RefCell<Option<Audio>>>,
-    total_volume: EditableSlider,
-    volumes: Vec<EditableSlider>,
+    current_playlist: Option<String>,
 }
 
 impl PlaylistWidget {
     pub fn new(composition: Rc<RefCell<Option<Audio>>>) -> PlaylistWidget {
-        let mut volumes = vec![];
-        if let Some(c) = composition.borrow().as_ref() {
-            for _ in 0..c.borrow().audio_count() {
-                volumes.push(EditableSlider::new());
-            }
-        }
-
         PlaylistWidget {
             title: EditableHeader::new("".to_string()),
             composition,
-            total_volume: EditableSlider::new(),
-            volumes,
+            current_playlist: None,
         }
     }
 
     pub fn sync_with_application(&mut self) {
         if let Some(comp) = self.composition.borrow().as_ref() {
             self.title.set_text(comp.borrow().get_title());
-            self.total_volume.set_value(comp.borrow().get_volume());
-
-            let mut volumes = vec![];
-            for i in 0..comp.borrow().audio_count() {
-                volumes.push(EditableSlider::from(
-                    comp.borrow().get_audio(i).unwrap().borrow().get_volume(),
-                ));
-            }
-            self.volumes = volumes;
+            self.current_playlist = None;
         }
     }
 
     pub fn insert_audio(&mut self, audio: Audio) {
-        if let Some(compostion) = self.composition.borrow_mut().as_ref() {
-            compostion.borrow_mut().push_audio(audio).unwrap();
-            self.volumes.push(EditableSlider::new());
+        if let Some(composition) = self.composition.borrow_mut().as_ref() {
+            let playlist = if let Some(playlist) = &self.current_playlist {
+                playlist.clone()
+            } else if let Some(playlist) = composition.borrow().playlists().unwrap().get(0) {
+                playlist.clone()
+            } else {
+                let playlist = generate_playlist_name(Vec::new());
+                composition.borrow_mut().push_playlist(&playlist).unwrap();
+                playlist
+            };
+
+            composition
+                .borrow_mut()
+                .push_audio(&playlist, audio)
+                .unwrap();
         }
     }
 
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
-        // match self.storage2settings_rx.try_recv() {
-        //     Ok(audio) => {
-        //         let _ = self
-        //             .audio
-        //             .as_mut()
-        //             .unwrap()
-        //             .lock()
-        //             .unwrap()
-        //             .insert_audio(0, audio);
-        //     }
-        //     Err(_) => (),
-        // }
+        if self.composition.borrow().is_none() {
+            return;
+        }
 
-        let mut actions = vec![];
         if let Some(composition) = self.composition.borrow().as_ref() {
             ui.vertical_centered(|ui| {
                 if let Some(new_title) = self.title.update(ui) {
@@ -104,51 +84,112 @@ impl PlaylistWidget {
             ui.horizontal(|ui| {
                 ui.label("Громкость");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if let Some(v) = self.total_volume.update(ui) {
-                        composition.borrow_mut().set_volume(v);
+                    let mut total_volume = composition.borrow().get_volume();
+                    if ui
+                        .add(Slider::new(&mut total_volume, 0.0..=1.0).show_value(false))
+                        .changed()
+                    {
+                        composition.borrow_mut().set_volume(total_volume);
                         sync_with_player(events, composition);
                     }
                 });
             });
         }
         ui.add_space(25.0);
-        self.render_playlist(ui, "Музыка", events, &mut actions);
-        // self.render_playlist(ui, "Эффекты", composition);
+        let playlists = if let Some(v) = self.composition.borrow().as_ref() {
+            v.borrow().playlists().unwrap()
+        } else {
+            Vec::new()
+        };
 
-        for action in actions {
-            match action {
-                Action::Remove(i) => {
-                    self.remove_composition(i);
-                    sync_with_player(events, self.composition.borrow_mut().as_mut().unwrap());
-                }
-                Action::Sync => {
-                    sync_with_player(events, self.composition.borrow_mut().as_mut().unwrap())
-                }
+        for mut playlist in playlists {
+            let mut remove_elements = vec![];
+            self.render_playlist(ui, events, &mut remove_elements, &mut playlist);
+
+            for element in remove_elements {
+                self.remove_composition(&playlist, element);
+                sync_with_player(events, self.composition.borrow_mut().as_mut().unwrap());
             }
         }
+
+        ui.vertical_centered(|ui| {
+            if ui.button("+").clicked() {
+                let playlist = &generate_playlist_name(
+                    self.composition
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .playlists()
+                        .unwrap(),
+                );
+
+                self.composition
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .borrow_mut()
+                    .push_playlist(playlist)
+                    .unwrap();
+            }
+        });
     }
 
     fn render_playlist(
         &mut self,
         ui: &mut Ui,
-        title: &str,
         events: &mut Events,
-        actions: &mut Vec<Action>,
+        remove_elements: &mut Vec<usize>,
+        playlist: &mut String,
     ) {
         if self.composition.borrow().as_ref().is_none() {
             return;
         }
 
-        ui.separator();
-        ui.heading(title);
-        ui.add_space(20.0);
+        ui.horizontal(|ui| {
+            let mut title = playlist.clone();
+            let title_edit = ui.add(
+                if self.current_playlist.is_some()
+                    && &title == self.current_playlist.as_ref().unwrap()
+                {
+                    TextEdit::singleline(&mut title).text_color(ui.visuals().strong_text_color())
+                } else {
+                    TextEdit::singleline(&mut title)
+                },
+            );
+            if title_edit.changed() {
+                self.composition
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .borrow_mut()
+                    .rename_playlist(playlist, &title);
+                *playlist = title;
+            }
+
+            if title_edit.has_focus() {
+                self.current_playlist = Some(playlist.clone());
+            }
+
+            if ui.label("🗙").clicked() {
+                self.composition
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .borrow_mut()
+                    .remove_playlist(playlist);
+                return;
+            }
+        });
+
+        ui.add_space(5.0);
         let n = self
             .composition
             .borrow()
             .as_ref()
             .unwrap()
             .borrow()
-            .audio_count();
+            .audio_count(&playlist);
 
         for i in 0..n {
             // TODO: set labels clickable to select a track in the playlist.
@@ -158,7 +199,7 @@ impl PlaylistWidget {
                 .as_ref()
                 .unwrap()
                 .borrow()
-                .get_audio(i)
+                .get_audio(&playlist, i)
                 .unwrap();
 
             ui.horizontal(|ui| {
@@ -169,22 +210,28 @@ impl PlaylistWidget {
                         .add(Label::new("🗙").sense(Sense::click()).selectable(false))
                         .clicked()
                     {
-                        actions.push(Action::Remove(i));
+                        remove_elements.push(i);
                     }
 
-                    if let Some(v) = self.volumes[i].update(ui) {
-                        self.composition
-                            .borrow()
-                            .as_ref()
-                            .unwrap()
-                            .borrow()
-                            .get_audio(i)
-                            .unwrap()
-                            .borrow_mut()
-                            .set_volume(v);
+                    let mut volume = audio.borrow().get_volume();
+                    if ui
+                        .add(Slider::new(&mut volume, 0.0..=1.0).show_value(false))
+                        .changed()
+                    {
+                        audio.borrow_mut().set_volume(volume);
                         events.push_back(Event::PlayerSetTrackVolume {
-                            volume: v,
-                            playlist: 0,
+                            volume: volume,
+                            playlist_index: self
+                                .composition
+                                .borrow()
+                                .as_ref()
+                                .unwrap()
+                                .borrow()
+                                .playlists()
+                                .unwrap()
+                                .iter()
+                                .position(|s| &s == &playlist)
+                                .unwrap(),
                             index: i,
                         });
                     }
@@ -192,24 +239,36 @@ impl PlaylistWidget {
             });
             ui.add_space(5.0);
         }
+        ui.separator();
         ui.add_space(20.0);
     }
 
-    fn remove_composition(&mut self, index: usize) {
+    fn remove_composition(&mut self, playlist: &String, index: usize) {
         let _ = self
             .composition
             .borrow()
             .as_ref()
             .unwrap()
             .borrow_mut()
-            .erase_audio(index);
-        let _ = self.volumes.remove(index);
+            .remove_audio(playlist, index);
     }
 }
 
 fn sync_with_player(
     events: &mut std::collections::VecDeque<super::events::Event>,
-    composition: &Rc<RefCell<dyn RawAudio + 'static>>,
+    _composition: &Rc<RefCell<dyn RawAudio + 'static>>,
 ) {
     events.push_back(super::events::Event::PlayerSync);
+}
+
+fn generate_playlist_name(names: Vec<String>) -> String {
+    let mut i: usize = 1;
+    while i < 100_000 {
+        let name = format!("Playlist {i}");
+        if !names.contains(&name) {
+            return name;
+        }
+        i += 1;
+    }
+    "The last name".to_string()
 }

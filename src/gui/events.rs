@@ -16,10 +16,7 @@
 
 use std::{collections::VecDeque, path::PathBuf};
 
-use crate::{
-    audio::audio::{Audio},
-    storage::storage::StorageCredentials,
-};
+use crate::{audio::audio::Audio, storage::storage::StorageCredentials};
 
 pub type Events = VecDeque<Event>;
 
@@ -45,7 +42,7 @@ pub enum Event {
     },
     PlayerSetTrackVolume {
         volume: f32,
-        playlist: usize,
+        playlist_index: usize,
         index: usize,
     },
     Select {

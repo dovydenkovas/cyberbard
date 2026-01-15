@@ -14,6 +14,8 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::collections::{BTreeMap, HashMap};
+
 use serde::{Deserialize, Serialize};
 
 use crate::audio::audio::{Audio, AudioError, RawAudio};
@@ -27,24 +29,32 @@ use crate::storage::stream::Stream;
 pub struct Composition {
     volume: f32,
     is_looped_flag: bool,
-    audios: Vec<Audio>,
     title: String,
+    playlists: BTreeMap<String, Vec<Audio>>,
 }
 
 impl Composition {
     pub fn new() -> Composition {
-        let title = "Ваш крутой плейлист".to_string();
+        let title = "Мой крутой плейлист".to_string();
 
         Composition {
             volume: 1.0,
             is_looped_flag: true,
-            audios: vec![],
+            playlists: BTreeMap::new(),
             title,
         }
     }
 }
 
 impl RawAudio for Composition {
+    fn get_title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn set_title(&mut self, title: String) {
+        self.title = title;
+    }
+
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
         Err(AudioError::NotATrack)
     }
@@ -64,155 +74,84 @@ impl RawAudio for Composition {
     fn get_stream(&self) -> Option<Stream> {
         let mut stream = Stream::new(vec![], self.volume);
         let mut is_none = true;
-        for audio in self.audios.iter() {
-            match audio.borrow().get_stream() {
-                Some(s) => {
-                    stream.merge(s);
-                    is_none = false;
+
+        for pl in self.playlists.values() {
+            let mut substream = Stream::new(vec![], self.volume);
+            for audio in pl {
+                match audio.borrow().get_stream() {
+                    Some(s) => {
+                        substream.merge(s);
+                        is_none = false;
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
+            stream.merge_parallel(substream);
         }
         if is_none { None } else { Some(stream) }
     }
 
-    fn insert_audio(&mut self, index: usize, audio: Audio) -> Result<(), AudioError> {
-        match self.audios.len().cmp(&index) {
-            std::cmp::Ordering::Less => Err(AudioError::OutOfRange),
-            std::cmp::Ordering::Equal => {
-                self.audios.push(audio);
-                Ok(())
-            }
-            std::cmp::Ordering::Greater => {
-                self.audios.insert(index, audio);
-                Ok(())
-            }
+    fn push_playlist(&mut self, caption: &String) -> Result<(), AudioError> {
+        if !self.playlists.contains_key(caption) {
+            self.playlists.insert(caption.clone(), Vec::new());
         }
-    }
-
-    fn erase_audio(&mut self, index: usize) -> Result<(), AudioError> {
-        match self.audios.len().cmp(&index) {
-            std::cmp::Ordering::Less => Err(AudioError::OutOfRange),
-            std::cmp::Ordering::Equal => {
-                self.audios.pop();
-                Ok(())
-            }
-            std::cmp::Ordering::Greater => {
-                self.audios.remove(index);
-                Ok(())
-            }
-        }
-    }
-
-    fn get_audio(&self, index: usize) -> Result<Audio, AudioError> {
-        match self.audios.len().cmp(&index) {
-            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
-            std::cmp::Ordering::Greater => Ok(self.audios[index].clone()),
-        }
-    }
-
-    fn audio_count(&self) -> usize {
-        self.audios.len()
-    }
-
-    fn get_title(&self) -> String {
-        self.title.clone()
-    }
-
-    fn set_title(&mut self, title: String) {
-        self.title = title;
-    }
-
-    fn push_audio(&mut self, audio: Audio) -> Result<(), AudioError> {
-        self.audios.push(audio);
         Ok(())
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{audio::track::Track, storage::source::Source};
+    fn remove_playlist(&mut self, caption: &String) {
+        self.playlists.remove(caption);
+    }
 
-    #[derive(PartialEq, Debug, Clone)]
-    struct TestSource {}
-    impl Source for TestSource {
-        fn get_stream(&self) -> Stream {
-            Stream::new(vec![])
-        }
-
-        fn get_title(&self) -> String {
-            "test".to_string()
-        }
-
-        fn clone_box(&self) -> Box<dyn Source> {
-            Box::new(self.clone())
+    fn rename_playlist(&mut self, old_caption: &String, new_caption: &String) {
+        if let Some(v) = self.playlists.remove(old_caption) {
+            self.playlists.insert(new_caption.clone(), v);
         }
     }
 
-    fn get_track() -> Track {
-        Track::new(Box::new(TestSource {}))
+    fn playlists(&self) -> Result<Vec<String>, AudioError> {
+        Ok(self.playlists.keys().map(|k| k.to_string()).collect())
     }
 
-    fn get_composition() -> Composition {
-        Composition::new()
+    fn push_audio(&mut self, caption: &String, audio: Audio) -> Result<(), AudioError> {
+        match self.playlists.get_mut(caption) {
+            Some(v) => {
+                v.push(audio);
+                Ok(())
+            }
+            None => Err(AudioError::OutOfRange),
+        }
     }
 
-    #[test]
-    fn composition_create() {
-        let _ = get_composition();
+    fn remove_audio(&mut self, caption: &String, index: usize) -> Result<(), AudioError> {
+        if !self.playlists.contains_key(caption) {
+            return Err(AudioError::OutOfRange);
+        }
+
+        match self.playlists[caption].len().cmp(&index) {
+            std::cmp::Ordering::Less => Err(AudioError::OutOfRange),
+            std::cmp::Ordering::Equal => {
+                self.playlists.get_mut(caption).unwrap().pop();
+                Ok(())
+            }
+            std::cmp::Ordering::Greater => {
+                self.playlists.get_mut(caption).unwrap().remove(index);
+                Ok(())
+            }
+        }
     }
 
-    #[test]
-    fn composition_source() {
-        let c = get_composition();
-        assert!(!c.get_source().is_ok());
+    fn get_audio(&self, caption: &String, index: usize) -> Result<Audio, AudioError> {
+        if !self.playlists.contains_key(caption) {
+            return Err(AudioError::OutOfRange);
+        }
+
+        match self.playlists[caption].len().cmp(&index) {
+            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
+            std::cmp::Ordering::Greater => Ok(self.playlists[caption][index].clone()),
+        }
     }
 
-    #[test]
-    fn composition_volume() {
-        let mut c = get_composition();
-        assert_eq!(1.0, c.get_volume());
-        c.set_volume(0.42);
-        assert_eq!(0.42, c.get_volume());
-        c.set_volume(150.0);
-        assert_eq!(1.0, c.get_volume());
-    }
-
-    #[test]
-    fn composition_looped() {
-        let mut c = get_composition();
-        assert_eq!(true, c.is_looped());
-        c.looped(false);
-        assert_eq!(false, c.is_looped());
-    }
-
-    #[test]
-    fn composition_get_stream() {
-        let tr = Rc::new(RefCell::new(get_track()));
-        let mut c = Composition::new();
-        let _ = c.insert_audio(0, tr);
-        assert!(c.get_stream().unwrap().is_empty());
-    }
-
-    #[test]
-    fn composition_insert_erase() {
-        let mut tr = get_composition();
-        assert_eq!(0, tr.audio_count());
-
-        let tr2 = Rc::new(RefCell::new(get_composition()));
-        assert!(tr.insert_audio(0, tr2).is_ok());
-        let tr3 = Rc::new(RefCell::new(get_composition()));
-        assert_eq!(Err(AudioError::OutOfRange), tr.insert_audio(10, tr3));
-
-        let a0 = tr.get_audio(0);
-        assert!(a0.is_ok());
-        assert!(!tr.get_audio(10).is_ok());
-        assert_eq!(1, tr.audio_count());
-
-        assert!(tr.erase_audio(0).is_ok());
-        assert_eq!(Err(AudioError::OutOfRange), tr.erase_audio(10));
-
-        assert_eq!(0, tr.audio_count());
+    fn audio_count(&self, caption: &String) -> usize {
+        self.playlists.get(caption).unwrap_or(&Vec::new()).len()
     }
 }

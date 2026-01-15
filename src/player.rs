@@ -163,10 +163,10 @@ impl Player {
         let _ = self.cmd_tx.send(Command::SetVolume(vol));
     }
 
-    pub fn set_track_volume(&mut self, volume: f32, playlist: usize, index: usize) {
+    pub fn set_track_volume(&mut self, volume: f32, playlist_index: usize, index: usize) {
         let _ = self
             .cmd_tx
-            .send(Command::SetTrackVolume(volume, playlist, index));
+            .send(Command::SetTrackVolume(volume, playlist_index, index));
     }
 }
 

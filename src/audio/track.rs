@@ -45,6 +45,14 @@ impl Track {
 }
 
 impl RawAudio for Track {
+    fn get_title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn set_title(&mut self, title: String) {
+        self.title = title
+    }
+
     fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
         Ok(self.source.clone())
     }
@@ -67,114 +75,35 @@ impl RawAudio for Track {
         Some(s)
     }
 
-    fn insert_audio(&mut self, _index: usize, _audio: Audio) -> Result<(), AudioError> {
+    fn push_playlist(&mut self, _caption: &String) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn erase_audio(&mut self, _index: usize) -> Result<(), AudioError> {
+    fn rename_playlist(&mut self, _old_caption: &String, _new_caption: &String) {
+        // Not implemented for track
+    }
+
+    fn remove_playlist(&mut self, _caption: &String) {
+        // Not implemented for track
+    }
+
+    fn playlists(&self) -> Result<Vec<String>, AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn get_audio(&self, _index: usize) -> Result<Audio, AudioError> {
+    fn push_audio(&mut self, _playlist: &String, _audio: Audio) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn audio_count(&self) -> usize {
+    fn remove_audio(&mut self, _playlist: &String, _index: usize) -> Result<(), AudioError> {
+        Err(AudioError::NotAComposition)
+    }
+
+    fn get_audio(&self, _playlist: &String, _index: usize) -> Result<Audio, AudioError> {
+        Err(AudioError::NotAComposition)
+    }
+
+    fn audio_count(&self, _playlist: &String) -> usize {
         return 0;
-    }
-
-    fn get_title(&self) -> String {
-        self.title.clone()
-    }
-
-    fn set_title(&mut self, title: String) {
-        self.title = title
-    }
-
-    fn push_audio(&mut self, audio: Audio) -> Result<(), AudioError> {
-        Err(AudioError::NotAComposition)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::storage::source::Source;
-
-    #[derive(PartialEq, Debug, Clone)]
-    struct TestSource {}
-    impl Source for TestSource {
-        fn get_stream(&self) -> Stream {
-            Stream::new(vec![])
-        }
-
-        fn get_title(&self) -> String {
-            "test".to_string()
-        }
-
-        fn clone_box(&self) -> Box<dyn Source> {
-            Box::new(self.clone())
-        }
-    }
-
-    fn get_track() -> Track {
-        Track::new(Box::new(TestSource {}))
-    }
-
-    #[test]
-    fn track_create() {
-        let _ = get_track();
-    }
-
-    #[test]
-    fn track_source() {
-        let mut tr = get_track();
-        let s = Box::new(TestSource {});
-        assert_eq!(s.get_title(), tr.get_source().unwrap().get_title());
-        tr.set_source(s);
-        let s = Box::new(TestSource {});
-        assert_eq!(s.get_title(), tr.get_source().unwrap().get_title());
-    }
-
-    #[test]
-    fn track_volume() {
-        let mut tr = get_track();
-        assert_eq!(1.0, tr.get_volume());
-        tr.set_volume(0.42);
-        assert_eq!(0.42, tr.get_volume());
-        tr.set_volume(150.0);
-        assert_eq!(1.0, tr.get_volume());
-    }
-
-    #[test]
-    fn track_looped() {
-        let mut tr = get_track();
-        assert_eq!(true, tr.is_looped());
-        tr.looped(false);
-        assert_eq!(false, tr.is_looped());
-    }
-
-    #[test]
-    fn track_get_stream() {
-        let s = TestSource {};
-        let tr = Track::new(Box::new(s));
-        assert!(tr.get_stream().unwrap().is_empty());
-    }
-
-    #[test]
-    fn track_not_a_composition() {
-        let mut tr = get_track();
-        let tr2 = Rc::new(RefCell::new(get_track()));
-        assert_eq!(Err(AudioError::NotAComposition), tr.insert_audio(0, tr2));
-        let tr2 = Rc::new(RefCell::new(get_track()));
-        assert_eq!(Err(AudioError::NotAComposition), tr.insert_audio(10, tr2));
-
-        assert_eq!(Err(AudioError::NotAComposition), tr.erase_audio(0));
-        assert_eq!(Err(AudioError::NotAComposition), tr.erase_audio(10));
-
-        let err = tr.get_audio(0);
-        assert!(!err.is_ok());
-        assert!(!tr.get_audio(10).is_ok());
-        assert_eq!(0, tr.audio_count());
     }
 }

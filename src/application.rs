@@ -101,10 +101,10 @@ impl Application {
         self.player.borrow_mut().set_volume(volume);
     }
 
-    pub fn player_set_track_volume(&mut self, volume: f32, playlist: usize, index: usize) {
+    pub fn player_set_track_volume(&mut self, volume: f32, playlist_index: usize, index: usize) {
         self.player
             .borrow_mut()
-            .set_track_volume(volume, playlist, index);
+            .set_track_volume(volume, playlist_index, index);
     }
 
     pub fn player_sync(&mut self) {
