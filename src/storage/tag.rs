@@ -93,25 +93,6 @@ impl Tag {
     }
 }
 
-pub struct SourceTagLink {
-    source: String,
-    tag: String,
-}
-
-impl SourceTagLink {
-    pub fn new(source: String, tag: String) -> SourceTagLink {
-        SourceTagLink { source, tag }
-    }
-
-    pub fn get_tag(&self) -> String {
-        self.tag.clone()
-    }
-
-    pub fn get_source(&self) -> String {
-        self.source.clone()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

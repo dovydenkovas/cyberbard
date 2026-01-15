@@ -238,7 +238,7 @@ impl MapWidget {
         }
     }
 
-    fn render_open_map_dialog(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+    fn render_open_map_dialog(&mut self, ctx: &egui::Context, _ui: &mut Ui) {
         // TODO: not to lock the main window
         let path = FileDialog::new()
             .set_title("Выбор каталога с музыкой и файлами игры")

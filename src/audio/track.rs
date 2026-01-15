@@ -14,9 +14,6 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use erased_serde::serialize_trait_object;
 use serde::{Deserialize, Serialize};
 

@@ -16,46 +16,39 @@
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use egui::{Color32, Label, RichText, Sense, Ui, color_picker::color_edit_button_rgb};
-use egui_extras::{Column, TableBuilder};
+use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
     audio::track::Track,
-    gui::events::{Event, Events},
+    gui::{events::{Event, Events}, widgets},
     storage::storage::{Storage, StorageCredentials},
 };
 
-struct EditTag {
-    pub title: String,
-    pub color: Color32,
-    pub show_picker: bool,
-}
 
 pub struct StorageWidget {
-    caption: String,
+    caption: widgets::EditableHeader,
     search_pattern: String,
     shown_music: Vec<usize>,
     storage: Rc<RefCell<dyn Storage>>,
     edit_track_index: Option<usize>,
-    edit_tag: Option<EditTag>,
 }
 
 impl StorageWidget {
     pub fn new(storage: Rc<RefCell<dyn Storage>>) -> StorageWidget {
         let mut widget = StorageWidget {
-            caption: "".to_string(),
+            caption: widgets::EditableHeader::new("".to_string()),
             search_pattern: "".to_string(),
             storage,
             shown_music: vec![],
             edit_track_index: None,
-            edit_tag: None,
         };
         widget.sync_with_storage();
         widget
     }
 
     pub fn sync_with_storage(&mut self) {
+        self.caption.set_text(self.storage.borrow().get_caption());
         self.find();
     }
 
@@ -111,7 +104,9 @@ impl StorageWidget {
                 self.save_project(events)
             };
             ui.vertical_centered(|ui| {
-                ui.heading(&self.caption);
+                if let Some(new_caption) = self.caption.update(ui) {
+                    self.storage.borrow_mut().set_caption(new_caption);
+                }
             });
         });
 
