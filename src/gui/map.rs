@@ -220,7 +220,7 @@ impl MapWidget {
                 egui::Button::new("")
                     .corner_radius(90.0)
                     .min_size(vec2(0.0, 0.0))
-                    .fill(egui::Color32::from_hex("#b67404").unwrap()),
+                    .fill(egui::Color32::from_hex("#b67404aa").unwrap()),
             );
 
             if response.clicked() {
