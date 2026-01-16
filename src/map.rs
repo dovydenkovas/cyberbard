@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, path::PathBuf, rc::Rc};
 
 use egui::TextureHandle;
 use serde::{Deserialize, Serialize};
@@ -30,8 +30,8 @@ pub struct Map {
     parent: Option<Rc<RefCell<Map>>>,
 
     #[serde(skip)]
-    image: Option<TextureHandle>,
-    // texture_path: Option<String>,
+    background: Option<TextureHandle>,
+    background_path: Option<PathBuf>,
 }
 
 impl Map {
@@ -40,7 +40,8 @@ impl Map {
             audio: vec![],
             maps: BTreeMap::new(),
             parent,
-            image: None,
+            background: None,
+            background_path: None,
         }
     }
 
@@ -76,12 +77,17 @@ impl Map {
         }
     }
 
-    pub fn set_background(&mut self, image: Option<TextureHandle>) {
-        self.image = image;
+    pub fn set_background(&mut self, path: PathBuf, handle: TextureHandle) {
+        self.background_path = Some(path);
+        self.background = Some(handle);
     }
 
     pub fn get_background(&self) -> Option<TextureHandle> {
-        self.image.clone()
+        self.background.clone()
+    }
+    
+    pub fn get_background_path(&self) -> Option<PathBuf> {
+        self.background_path.clone()
     }
 
     pub fn insert_audio(&mut self, index: usize, audio: Audio) {

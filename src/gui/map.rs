@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use crate::{
     audio::audio::Audio,
@@ -161,6 +161,11 @@ impl MapWidget {
         if self.show_open_map_dialog {
             self.render_open_map_dialog(ctx, ui);
         } else if self.map.borrow().get_background().is_none() {
+            let path = self.map.borrow().get_background_path();
+            if let Some(path) = path {
+                self.try_load_background(ctx, path);
+            }
+            
             ui.centered_and_justified(|ui| {
                 let btn = Label::new("Добавить карту".to_string()).sense(Sense::click());
                 if ui.add(btn).clicked() {
@@ -247,20 +252,24 @@ impl MapWidget {
 
         if let Some(path) = path {
             // TODO: add load animation
-            match load_image_from_path(path.to_str().unwrap()) {
-                // TODO: cut map rectangle from image
-                Ok(image_data) => {
-                    let handle = ctx.load_texture(
-                        path.to_str().unwrap(), // A unique name for the texture
-                        image_data,
-                        Default::default(),
-                    );
-                    self.map.borrow_mut().set_background(Some(handle));
-                }
-                Err(_) => (), // TODO: add error message
-            }
+            // TODO: cut map rectangle from image
+            self.try_load_background(ctx, path);
         }
         self.show_open_map_dialog = false;
+    }
+
+    fn try_load_background(&mut self, ctx: &egui::Context, path: PathBuf) {
+        match load_image_from_path(path.to_str().unwrap()) {
+            Ok(image_data) => {
+                let handle = ctx.load_texture(
+                    path.to_str().unwrap(), // A unique name for the texture
+                    image_data,
+                    Default::default(),
+                );
+                self.map.borrow_mut().set_background(path, handle);
+            }
+            Err(_) => (), 
+        }
     }
 }
 
