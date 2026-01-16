@@ -17,16 +17,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use erased_serde::serialize_trait_object;
 use serde::{Deserialize, Serialize};
 
 use crate::storage::source::Source;
 use crate::storage::stream::Stream;
 
-pub type Audio = Rc<RefCell<dyn RawAudio>>;
+pub type Audio = Rc<RefCell<Box<dyn RawAudio>>>;
 pub type AudioCell = Rc<RefCell<Option<Audio>>>;
 
 /// Audio trait. Describe Track and Composition interface.
+#[typetag::serde(tag = "type")]
 pub trait RawAudio: erased_serde::Serialize {
     fn get_title(&self) -> String;
     fn set_title(&mut self, title: String);
@@ -46,8 +46,6 @@ pub trait RawAudio: erased_serde::Serialize {
     fn get_audio(&self, playlst: &String, index: usize) -> Result<Audio, AudioError>;
     fn audio_count(&self, playlist: &String) -> usize;
 }
-
-serialize_trait_object!(RawAudio);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum AudioError {

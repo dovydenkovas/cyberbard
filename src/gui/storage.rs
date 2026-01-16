@@ -20,22 +20,24 @@ use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
-    audio::track::Track,
-    gui::{events::{Event, Events}, widgets},
+    audio::{audio::Audio, track::Track},
+    gui::{
+        events::{Event, Events},
+        widgets,
+    },
     storage::storage::{Storage, StorageCredentials},
 };
-
 
 pub struct StorageWidget {
     caption: widgets::EditableHeader,
     search_pattern: String,
     shown_music: Vec<usize>,
-    storage: Rc<RefCell<dyn Storage>>,
+    storage: Rc<RefCell<Box<dyn Storage>>>,
     edit_track_index: Option<usize>,
 }
 
 impl StorageWidget {
-    pub fn new(storage: Rc<RefCell<dyn Storage>>) -> StorageWidget {
+    pub fn new(storage: Rc<RefCell<Box<dyn Storage>>>) -> StorageWidget {
         let mut widget = StorageWidget {
             caption: widgets::EditableHeader::new("".to_string()),
             search_pattern: "".to_string(),
@@ -53,7 +55,6 @@ impl StorageWidget {
     }
 
     fn open_project(&mut self, events: &mut Events) {
-        println!("Open project");
         let path = FileDialog::new()
             .set_title("Выбор каталога с музыкой и файлами игры")
             .pick_folder();
@@ -66,10 +67,16 @@ impl StorageWidget {
     }
 
     fn save_project(&self, events: &mut Events) {
-        println!("Save project");
-        events.push_back(Event::SaveProject {
-            path: PathBuf::from("test.toml"),
-        });
+        let path = FileDialog::new()
+            .set_title("Сохраняем проект")
+            .add_filter("Теги и карты", &["yaml"])
+            .save_file();
+
+        if let Some(path) = path {
+            events.push_back(Event::SaveProject {
+                path: PathBuf::from(path),
+            });
+        }
     }
 
     fn find(&mut self) {
@@ -78,15 +85,15 @@ impl StorageWidget {
     }
 
     fn send_source_to_player(&self, index: usize, events: &mut Events) {
-        let audio = Rc::new(RefCell::new(Track::new(
+        let audio: Audio = Rc::new(RefCell::new(Box::new(Track::new(
             self.storage.borrow().get(index).unwrap(),
-        )));
+        ))));
         events.push_back(Event::Play { audio });
     }
 
     fn send_source_to_map(&self, index: usize, events: &mut Events) {
         let source = self.storage.borrow().get(index).unwrap();
-        let audio = Rc::new(RefCell::new(Track::new(source)));
+        let audio: Audio = Rc::new(RefCell::new(Box::new(Track::new(source))));
         events.push_back(Event::AddAudioToComposition { audio });
     }
 

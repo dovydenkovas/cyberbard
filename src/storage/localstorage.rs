@@ -33,7 +33,7 @@ type TagIndexes = Vec<usize>;
 
 /// Storage of audio sources, that read audio files from local disk.
 /// Open stream from .mp3, .ogg and so on files.
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct LocalStorage {
     storage_path: PathBuf,
     caption: String,
@@ -63,6 +63,7 @@ impl LocalStorage {
     }
 }
 
+#[typetag::serde]
 impl Storage for LocalStorage {
     fn load_sources(&mut self) {
         self.sources.clear();
@@ -260,6 +261,7 @@ impl LocalSource {
     }
 }
 
+#[typetag::serde]
 impl super::source::Source for LocalSource {
     fn get_stream(&self) -> super::stream::Stream {
         Stream::from_source(LocalOpener::new(self.filename.clone()), 100.0)

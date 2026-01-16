@@ -83,7 +83,7 @@ impl MapWidget {
                 .default_width(200.0)
                 .show_inside(ui, |ui| {
                     self.render_playlists(ctx, ui, events);
-            });
+                });
             ui.add_space(10.0);
             self.render_map_widget(ctx, ui);
         }
@@ -272,7 +272,6 @@ fn scale_texture(win_w: f32, win_h: f32, w: f32, h: f32) -> (f32, f32) {
         (w * win_h / h, win_h)
     }
 }
-
 
 /// Helper function to load image data
 fn load_image_from_path(path: &str) -> Result<egui::ColorImage, String> {

@@ -14,9 +14,9 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, error::Error, fs, io, path::PathBuf, rc::Rc};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Map, Player, Storage,
@@ -24,17 +24,22 @@ use crate::{
     storage::storage::StorageCredentials,
 };
 
+#[derive(Serialize, Deserialize)]
 pub struct Application {
-    storage: Rc<RefCell<dyn Storage>>,
+    storage: Rc<RefCell<Box<dyn Storage>>>,
     root_map: Rc<RefCell<Map>>,
+
+    #[serde(skip)]
     player: Rc<RefCell<Player>>,
+    #[serde(skip)]
     selected_compostion: AudioCell,
+    #[serde(skip)]
     current_playing: AudioCell,
 }
 
 impl Application {
     pub fn new(
-        storage: Rc<RefCell<dyn Storage>>,
+        storage: Rc<RefCell<Box<dyn Storage>>>,
         root_map: Rc<RefCell<Map>>,
         player: Rc<RefCell<Player>>,
     ) -> Application {
@@ -47,12 +52,17 @@ impl Application {
         }
     }
 
-    pub fn get_storage(&self) -> Rc<RefCell<dyn Storage>> {
+    pub fn get_storage(&self) -> Rc<RefCell<Box<dyn Storage>>> {
         Rc::clone(&self.storage)
     }
 
-    pub fn setup_storage(&mut self, credentials: StorageCredentials) {
-        self.storage.borrow_mut().setup_storage(credentials);
+    pub fn setup_storage(
+        &mut self,
+        credentials: StorageCredentials,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        match credentials {
+            StorageCredentials::Local { path } => self.open_local_project(path),
+        }
     }
 
     pub fn get_player(&self) -> Rc<RefCell<Player>> {
@@ -123,8 +133,73 @@ impl Application {
     }
 
     pub fn save_project(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let map = &self.root_map.as_ref();
-        fs::write(path, toml::to_string(map).unwrap())?;
+        let s = serde_yaml::to_string(self).unwrap();
+        fs::write(path, s)?;
         Ok(())
+    }
+
+    pub fn open_local_project(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        match find_yaml_files(&path) {
+            Ok(files) => {
+                if files.len() == 0 {
+                    self.storage
+                        .borrow_mut()
+                        .setup_storage(StorageCredentials::Local { path });
+                } else {
+                    let s = fs::read_to_string(&files[0]).unwrap();
+                    match serde_yaml::from_str::<Application>(s.as_str()) {
+                        Ok(app) => {
+                            self.replace(app);
+                        }
+                        Err(e) => return Err(Box::new(e)),
+                    }
+                }
+            }
+            Err(e) => eprintln!("Error reading directory: {}", e),
+        }
+        Ok(())
+    }
+
+    fn replace(&mut self, app: Application) {
+        self.current_playing.replace(None);
+        self.player.borrow_mut().reset();
+        self.root_map = app.root_map;
+        self.selected_compostion.replace(None);
+        self.storage = app.storage;
+
+        let current = Some(Rc::clone(&self.root_map));
+        restore_map(&mut self.root_map, None, current);
+    }
+}
+
+fn find_yaml_files(dir_path: &PathBuf) -> io::Result<Vec<std::path::PathBuf>> {
+    let mut yaml_files = Vec::new();
+
+    for entry in fs::read_dir(dir_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(extension) = path.extension() {
+                if extension == "yaml" || extension == "yml" {
+                    yaml_files.push(path);
+                }
+            }
+        }
+    }
+
+    Ok(yaml_files)
+}
+
+fn restore_map(
+    map: &mut Rc<RefCell<Map>>,
+    parent: Option<Rc<RefCell<Map>>>,
+    current: Option<Rc<RefCell<Map>>>,
+) {
+    map.borrow_mut().set_parent(parent);
+    for m in map.borrow().iter_maps() {
+        let mut m = map.borrow().get_map(m).unwrap();
+        let next = Some(Rc::clone(&m));
+        restore_map(&mut m, current.clone(), next);
     }
 }

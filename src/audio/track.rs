@@ -14,7 +14,6 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use erased_serde::serialize_trait_object;
 use serde::{Deserialize, Serialize};
 
 use crate::audio::audio::{Audio, AudioError, RawAudio};
@@ -23,7 +22,7 @@ use crate::storage::stream::Stream;
 
 /// Track is container one Stream and it's settings.
 /// Composition implements Audio trait.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Track {
     title: String,
     volume: f32,
@@ -44,6 +43,7 @@ impl Track {
     }
 }
 
+#[typetag::serde]
 impl RawAudio for Track {
     fn get_title(&self) -> String {
         self.title.clone()

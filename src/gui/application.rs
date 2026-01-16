@@ -61,7 +61,14 @@ impl ApplicationImp {
             match event {
                 Event::SetupStorage { credentials } => {
                     self.application.setup_storage(credentials);
-                    self.storage_widget.sync_with_storage();
+                    let storage = self.application.get_storage();
+                    let map = self.application.get_root_map();
+                    let player = self.application.get_player();
+                    let composition = self.application.get_selected_composition();
+                    self.storage_widget = StorageWidget::new(storage);
+                    self.map_widget = MapWidget::new(map);
+                    self.player_widget = PlayerWidget::new(player);
+                    self.playlist_widget = PlaylistWidget::new(composition);
                 }
                 Event::Play { audio } => {
                     self.player_widget.play(&audio);

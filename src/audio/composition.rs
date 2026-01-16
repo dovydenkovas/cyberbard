@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ use crate::storage::stream::Stream;
 /// Composition is container for other compositions and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
 /// Composition implements Audio trait.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Composition {
     volume: f32,
     is_looped_flag: bool,
@@ -46,6 +46,7 @@ impl Composition {
     }
 }
 
+#[typetag::serde]
 impl RawAudio for Composition {
     fn get_title(&self) -> String {
         self.title.clone()

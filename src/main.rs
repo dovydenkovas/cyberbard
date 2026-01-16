@@ -34,7 +34,9 @@ mod storage;
 /// Initialize all structures and start player and application threads.
 fn main() {
     // TODO: Allow startup without storage.
-    let storage = Rc::new(RefCell::new(LocalStorage::new("music".to_string())));
+    let storage: Rc<RefCell<Box<dyn Storage>>> = Rc::new(RefCell::new(Box::new(
+        LocalStorage::new("music".to_string()),
+    )));
     let map = Rc::new(RefCell::new(Map::new(None)));
     let player = Rc::new(RefCell::new(Player::new()));
     let application = Application::new(storage, map, player);

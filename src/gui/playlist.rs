@@ -19,7 +19,7 @@ use std::{cell::RefCell, rc::Rc};
 use egui::{Label, Sense, Slider, TextEdit, Ui};
 
 use crate::{
-    audio::audio::{Audio, RawAudio},
+    audio::audio::Audio,
     gui::{
         events::{Event, Events},
         widgets::EditableHeader,
@@ -256,7 +256,7 @@ impl PlaylistWidget {
 
 fn sync_with_player(
     events: &mut std::collections::VecDeque<super::events::Event>,
-    _composition: &Rc<RefCell<dyn RawAudio + 'static>>,
+    _composition: &Audio,
 ) {
     events.push_back(super::events::Event::PlayerSync);
 }

@@ -25,7 +25,8 @@ pub enum StorageCredentials {
 }
 
 /// Storage trait describe interface to audio sources manipulation.
-pub trait Storage {
+#[typetag::serde(tag = "type")]
+pub trait Storage: erased_serde::Serialize {
     fn get_caption(&self) -> String;
     fn set_caption(&mut self, new_caption: String);
     fn load_sources(&mut self);

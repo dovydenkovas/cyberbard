@@ -15,17 +15,15 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use super::stream::Stream;
-use erased_serde::serialize_trait_object;
 
 /// Source trait describe interface of music in storage.
 /// Provides audio Stream and title.
+#[typetag::serde(tag = "type")]
 pub trait Source: erased_serde::Serialize {
     fn get_stream(&self) -> Stream;
     fn get_title(&self) -> String;
     fn clone_box(&self) -> Box<dyn Source>;
 }
-
-serialize_trait_object!(Source);
 
 impl Clone for Box<dyn Source> {
     fn clone(&self) -> Box<dyn Source> {

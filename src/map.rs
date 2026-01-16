@@ -21,16 +21,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::{audio::Audio, composition::Composition};
 
-
-
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Map {
     audio: Vec<Audio>,
     maps: BTreeMap<Point, Rc<RefCell<Map>>>,
+
+    #[serde(skip)]
     parent: Option<Rc<RefCell<Map>>>,
 
     #[serde(skip)]
     image: Option<TextureHandle>,
+    // texture_path: Option<String>,
 }
 
 impl Map {
@@ -41,6 +42,10 @@ impl Map {
             parent,
             image: None,
         }
+    }
+
+    pub fn set_parent(&mut self, new: Option<Rc<RefCell<Map>>>) {
+        self.parent = new;
     }
 
     pub fn insert_map(&mut self, point: Point, map: Rc<RefCell<Map>>) {
@@ -84,7 +89,7 @@ impl Map {
     }
 
     pub fn push_new_audio(&mut self) {
-        let audio = Rc::new(RefCell::new(Composition::new()));
+        let audio: Audio = Rc::new(RefCell::new(Box::new(Composition::new())));
         self.audio.push(audio);
     }
 
