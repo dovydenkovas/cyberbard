@@ -84,6 +84,11 @@ impl Map {
         self.background = Some(handle);
     }
 
+    pub fn remove_background(&mut self) {
+        self.background = None;
+        self.background_path = None;
+    }
+
     pub fn get_background(&self) -> Option<TextureHandle> {
         self.background.clone()
     }

@@ -173,9 +173,18 @@ impl MapWidget {
                 }
             });
         } else {
-            ui.centered_and_justified(|ui| {
-                self.render_map(ctx, ui);
+            let mut map_removed = false;
+            ui.horizontal(|ui| {
+                if ui.button("🗙").clicked() {
+                    self.map.borrow_mut().remove_background();
+                    map_removed = true;
+                }
             });
+            if !map_removed {
+                ui.centered_and_justified(|ui| {
+                    self.render_map(ctx, ui);
+                });
+            }
         }
     }
 
