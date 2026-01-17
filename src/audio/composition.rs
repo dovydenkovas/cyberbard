@@ -14,8 +14,6 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::audio::audio::{Audio, AudioError, RawAudio};
@@ -30,7 +28,7 @@ pub struct Composition {
     volume: f32,
     is_looped_flag: bool,
     title: String,
-    playlists: BTreeMap<String, Vec<Audio>>,
+    threads: Vec<(String, Vec<Audio>)>,
 }
 
 impl Composition {
@@ -40,9 +38,21 @@ impl Composition {
         Composition {
             volume: 1.0,
             is_looped_flag: true,
-            playlists: BTreeMap::new(),
+            threads: Vec::new(),
             title,
         }
+    }
+
+    fn contains_thread(&self, caption: &String) -> bool {
+        self.threads
+            .iter()
+            .find(|th| &th.0 == caption)
+            .take()
+            .is_some()
+    }
+
+    fn find_thread(&self, caption: &String) -> Option<usize> {
+        self.threads.iter().position(|th| &th.0 == caption)
     }
 }
 
@@ -76,7 +86,7 @@ impl RawAudio for Composition {
         let mut stream = Stream::new(vec![], self.volume);
         let mut is_none = true;
 
-        for pl in self.playlists.values() {
+        for (_, pl) in self.threads.iter() {
             let mut substream = Stream::new(vec![], self.volume);
             for audio in pl {
                 match audio.borrow().get_stream() {
@@ -92,31 +102,35 @@ impl RawAudio for Composition {
         if is_none { None } else { Some(stream) }
     }
 
-    fn push_playlist(&mut self, caption: &String) -> Result<(), AudioError> {
-        if !self.playlists.contains_key(caption) {
-            self.playlists.insert(caption.clone(), Vec::new());
+    fn push_thread(&mut self, caption: &String) -> Result<(), AudioError> {
+        if !self.contains_thread(caption) {
+            self.threads.push((caption.clone(), Vec::new()));
         }
         Ok(())
     }
 
-    fn remove_playlist(&mut self, caption: &String) {
-        self.playlists.remove(caption);
+    fn remove_thread(&mut self, caption: &String) {
+        self.threads.retain(|th| &th.0 != caption);
     }
 
-    fn rename_playlist(&mut self, old_caption: &String, new_caption: &String) {
-        if let Some(v) = self.playlists.remove(old_caption) {
-            self.playlists.insert(new_caption.clone(), v);
+    fn rename_thread(&mut self, old_caption: &String, new_caption: &String) {
+        if !self.contains_thread(new_caption) {
+            for thread in self.threads.iter_mut() {
+                if &thread.0 == old_caption {
+                    thread.0 = new_caption.clone();
+                }
+            }
         }
     }
 
-    fn playlists(&self) -> Result<Vec<String>, AudioError> {
-        Ok(self.playlists.keys().map(|k| k.to_string()).collect())
+    fn threads(&self) -> Result<Vec<String>, AudioError> {
+        Ok(self.threads.iter().map(|k| k.0.clone()).collect())
     }
 
     fn push_audio(&mut self, caption: &String, audio: Audio) -> Result<(), AudioError> {
-        match self.playlists.get_mut(caption) {
-            Some(v) => {
-                v.push(audio);
+        match self.find_thread(caption) {
+            Some(i) => {
+                self.threads[i].1.push(audio);
                 Ok(())
             }
             None => Err(AudioError::OutOfRange),
@@ -124,35 +138,36 @@ impl RawAudio for Composition {
     }
 
     fn remove_audio(&mut self, caption: &String, index: usize) -> Result<(), AudioError> {
-        if !self.playlists.contains_key(caption) {
-            return Err(AudioError::OutOfRange);
-        }
-
-        match self.playlists[caption].len().cmp(&index) {
-            std::cmp::Ordering::Less => Err(AudioError::OutOfRange),
-            std::cmp::Ordering::Equal => {
-                self.playlists.get_mut(caption).unwrap().pop();
+        match self.find_thread(caption) {
+            Some(i) => {
+                self.threads[i].1.remove(index);
                 Ok(())
             }
-            std::cmp::Ordering::Greater => {
-                self.playlists.get_mut(caption).unwrap().remove(index);
-                Ok(())
-            }
+            None => Err(AudioError::OutOfRange),
         }
     }
 
     fn get_audio(&self, caption: &String, index: usize) -> Result<Audio, AudioError> {
-        if !self.playlists.contains_key(caption) {
+        if !self.contains_thread(caption) {
             return Err(AudioError::OutOfRange);
         }
 
-        match self.playlists[caption].len().cmp(&index) {
+        match self.threads[self.find_thread(caption).unwrap()]
+            .1
+            .len()
+            .cmp(&index)
+        {
             std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
-            std::cmp::Ordering::Greater => Ok(self.playlists[caption][index].clone()),
+            std::cmp::Ordering::Greater => {
+                Ok(self.threads[self.find_thread(caption).unwrap()].1[index].clone())
+            }
         }
     }
 
     fn audio_count(&self, caption: &String) -> usize {
-        self.playlists.get(caption).unwrap_or(&Vec::new()).len()
+        match self.find_thread(caption) {
+            Some(i) => self.threads[i].1.len(),
+            None => 0,
+        }
     }
 }

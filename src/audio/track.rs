@@ -75,19 +75,19 @@ impl RawAudio for Track {
         Some(s)
     }
 
-    fn push_playlist(&mut self, _caption: &String) -> Result<(), AudioError> {
+    fn push_thread(&mut self, _caption: &String) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn rename_playlist(&mut self, _old_caption: &String, _new_caption: &String) {
+    fn rename_thread(&mut self, _old_caption: &String, _new_caption: &String) {
         // Not implemented for track
     }
 
-    fn remove_playlist(&mut self, _caption: &String) {
+    fn remove_thread(&mut self, _caption: &String) {
         // Not implemented for track
     }
 
-    fn playlists(&self) -> Result<Vec<String>, AudioError> {
+    fn threads(&self) -> Result<Vec<String>, AudioError> {
         Err(AudioError::NotAComposition)
     }
 

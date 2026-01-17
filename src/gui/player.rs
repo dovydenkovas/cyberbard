@@ -43,9 +43,9 @@ impl PlayerWidget {
 
     fn toggle_pause(&mut self) {
         if self.player.borrow().is_paused() {
-            self.player.borrow_mut().pause();
-        } else {
             self.player.borrow_mut().play();
+        } else {
+            self.player.borrow_mut().pause();
         }
     }
 

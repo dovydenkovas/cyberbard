@@ -36,10 +36,10 @@ pub trait RawAudio: erased_serde::Serialize {
     fn set_volume(&mut self, volume: f32);
     fn get_stream(&self) -> Option<Stream>;
 
-    fn push_playlist(&mut self, caption: &String) -> Result<(), AudioError>;
-    fn rename_playlist(&mut self, old_caption: &String, new_caption: &String);
-    fn remove_playlist(&mut self, caption: &String);
-    fn playlists(&self) -> Result<Vec<String>, AudioError>;
+    fn push_thread(&mut self, caption: &String) -> Result<(), AudioError>;
+    fn rename_thread(&mut self, old_caption: &String, new_caption: &String);
+    fn remove_thread(&mut self, caption: &String);
+    fn threads(&self) -> Result<Vec<String>, AudioError>;
 
     fn push_audio(&mut self, playlist: &String, audio: Audio) -> Result<(), AudioError>;
     fn remove_audio(&mut self, playlist: &String, index: usize) -> Result<(), AudioError>;

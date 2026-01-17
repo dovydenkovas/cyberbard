@@ -52,11 +52,11 @@ impl PlaylistWidget {
         if let Some(composition) = self.composition.borrow_mut().as_ref() {
             let playlist = if let Some(playlist) = &self.current_playlist {
                 playlist.clone()
-            } else if let Some(playlist) = composition.borrow().playlists().unwrap().get(0) {
+            } else if let Some(playlist) = composition.borrow().threads().unwrap().get(0) {
                 playlist.clone()
             } else {
                 let playlist = generate_playlist_name(Vec::new());
-                composition.borrow_mut().push_playlist(&playlist).unwrap();
+                composition.borrow_mut().push_thread(&playlist).unwrap();
                 playlist
             };
 
@@ -97,7 +97,7 @@ impl PlaylistWidget {
         }
         ui.add_space(25.0);
         let playlists = if let Some(v) = self.composition.borrow().as_ref() {
-            v.borrow().playlists().unwrap()
+            v.borrow().threads().unwrap()
         } else {
             Vec::new()
         };
@@ -120,7 +120,7 @@ impl PlaylistWidget {
                         .as_ref()
                         .unwrap()
                         .borrow()
-                        .playlists()
+                        .threads()
                         .unwrap(),
                 );
 
@@ -129,7 +129,7 @@ impl PlaylistWidget {
                     .as_ref()
                     .unwrap()
                     .borrow_mut()
-                    .push_playlist(playlist)
+                    .push_thread(playlist)
                     .unwrap();
             }
         });
@@ -163,7 +163,7 @@ impl PlaylistWidget {
                     .as_ref()
                     .unwrap()
                     .borrow_mut()
-                    .rename_playlist(playlist, &title);
+                    .rename_thread(playlist, &title);
                 *playlist = title;
             }
 
@@ -177,7 +177,7 @@ impl PlaylistWidget {
                     .as_ref()
                     .unwrap()
                     .borrow_mut()
-                    .remove_playlist(playlist);
+                    .remove_thread(playlist);
                 return;
             }
         });
@@ -227,7 +227,7 @@ impl PlaylistWidget {
                                 .as_ref()
                                 .unwrap()
                                 .borrow()
-                                .playlists()
+                                .threads()
                                 .unwrap()
                                 .iter()
                                 .position(|s| &s == &playlist)
