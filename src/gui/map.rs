@@ -55,7 +55,7 @@ impl MapWidget {
         if map.is_some() {
             self.map = map.unwrap();
             self.is_root = self.map.borrow().get_parent().is_none();
-            self.hide_map = self.map.borrow().get_background().is_none();
+            self.hide_map = self.map.borrow().get_background_path().is_none();
         }
     }
 
@@ -165,7 +165,7 @@ impl MapWidget {
             if let Some(path) = path {
                 self.try_load_background(ctx, path);
             }
-            
+
             ui.centered_and_justified(|ui| {
                 let btn = Label::new("Добавить карту".to_string()).sense(Sense::click());
                 if ui.add(btn).clicked() {
@@ -268,7 +268,7 @@ impl MapWidget {
                 );
                 self.map.borrow_mut().set_background(path, handle);
             }
-            Err(_) => (), 
+            Err(_) => (),
         }
     }
 }

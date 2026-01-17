@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cell::RefCell, error::Error, fs, io, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, fs, io, path::PathBuf, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
@@ -99,22 +99,19 @@ impl Application {
         self.player.borrow_mut().play();
     }
 
-    pub fn player_pause(&mut self) {
-        self.player.borrow_mut().pause();
-    }
-
-    pub fn player_stop(&mut self) {
-        self.player.borrow_mut().stop();
-    }
-
     pub fn player_set_volume(&mut self, volume: f32) {
         self.player.borrow_mut().set_volume(volume);
     }
 
     pub fn player_set_track_volume(&mut self, volume: f32, playlist_index: usize, index: usize) {
-        self.player
-            .borrow_mut()
-            .set_track_volume(volume, playlist_index, index);
+        if Rc::ptr_eq(
+            &self.selected_compostion.borrow().as_ref().unwrap(),
+            &self.current_playing.borrow().as_ref().unwrap(),
+        ) {
+            self.player
+                .borrow_mut()
+                .set_track_volume(volume, playlist_index, index);
+        }
     }
 
     pub fn player_sync(&mut self) {

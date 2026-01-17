@@ -20,7 +20,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::storage::source::Source;
-use crate::storage::stream::Stream;
+use crate::stream::stream::Stream;
 
 pub type Audio = Rc<RefCell<Box<dyn RawAudio>>>;
 pub type AudioCell = Rc<RefCell<Option<Audio>>>;

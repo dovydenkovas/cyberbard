@@ -14,33 +14,36 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, rc::Rc};
+use rodio::Sink;
 
-use crate::{
-    application::Application,
-    map::Map,
-    player::Player,
-    storage::{localstorage::LocalStorage, storage::Storage},
-};
+use super::Opener;
 
-mod application;
-mod audio;
-mod gui;
-mod map;
-mod player;
-mod storage;
-mod stream;
+pub struct TrackStream {
+    source: Box<dyn Opener + Send>,
+    volume: f32,
+}
 
-/// Application entry point.
-/// Initialize all structures and start player and application threads.
-fn main() {
-    // TODO: Allow startup without storage.
-    let storage: Rc<RefCell<Box<dyn Storage>>> = Rc::new(RefCell::new(Box::new(
-        LocalStorage::new("music".to_string()),
-    )));
-    let map = Rc::new(RefCell::new(Map::new(None)));
-    let player = Rc::new(RefCell::new(Player::new()));
-    let application = Application::new(storage, map, player);
+impl TrackStream {
+    pub fn new(source: Box<dyn Opener + Send>, volume: f32) -> TrackStream {
+        TrackStream { source, volume }
+    }
 
-    gui::application::run_gui(application);
+    pub fn reset_sink(&mut self, sink: &mut Sink) -> Result<(), Box<dyn std::error::Error>> {
+        let source = self.source.source()?;
+        sink.clear();
+        sink.append(source);
+        Ok(())
+    }
+
+    pub fn get_volume(&self) -> f32 {
+        self.volume
+    }
+
+    pub fn set_volume(&mut self, v: f32) {
+        self.volume = v;
+    }
+
+    pub fn total_duration(&self) -> f32 {
+        self.source.total_duration()
+    }
 }

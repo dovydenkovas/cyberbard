@@ -17,11 +17,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::storage::storage::StorageCredentials;
-use crate::storage::stream::Stream;
 use crate::storage::tag::Tag;
+use crate::stream::stream::Stream;
 
 use super::storage::Storage;
-use super::stream::Opener;
+use crate::stream::Opener;
 use id3::TagLike;
 use rodio::Source;
 use serde::{Deserialize, Serialize};
@@ -263,7 +263,7 @@ impl LocalSource {
 
 #[typetag::serde]
 impl super::source::Source for LocalSource {
-    fn get_stream(&self) -> super::stream::Stream {
+    fn get_stream(&self) -> Stream {
         Stream::from_source(LocalOpener::new(self.filename.clone()), 100.0)
     }
 

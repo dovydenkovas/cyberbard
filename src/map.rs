@@ -66,7 +66,9 @@ impl Map {
         }
     }
 
-    pub fn iter_maps(&self) -> std::collections::btree_map::Keys<Point, Rc<RefCell<Map>>> {
+    pub fn iter_maps<'a>(
+        &'a self,
+    ) -> std::collections::btree_map::Keys<'a, Point, Rc<RefCell<Map>>> {
         self.maps.keys()
     }
 
@@ -85,13 +87,9 @@ impl Map {
     pub fn get_background(&self) -> Option<TextureHandle> {
         self.background.clone()
     }
-    
+
     pub fn get_background_path(&self) -> Option<PathBuf> {
         self.background_path.clone()
-    }
-
-    pub fn insert_audio(&mut self, index: usize, audio: Audio) {
-        self.audio.insert(index, audio);
     }
 
     pub fn push_new_audio(&mut self) {

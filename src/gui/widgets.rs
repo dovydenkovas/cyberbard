@@ -35,33 +35,3 @@ impl EditableHeader {
         }
     }
 }
-
-#[derive(Debug)]
-pub struct EditableSlider {
-    value: f32,
-}
-
-impl EditableSlider {
-    pub fn new() -> EditableSlider {
-        EditableSlider { value: 1.0 }
-    }
-
-    pub fn from(v: f32) -> EditableSlider {
-        EditableSlider { value: v }
-    }
-
-    pub fn set_value(&mut self, v: f32) {
-        self.value = v;
-    }
-
-    pub fn update(&mut self, ui: &mut Ui) -> Option<f32> {
-        if ui
-            .add(egui::Slider::new(&mut self.value, 0.0..=1.0).show_value(false))
-            .changed()
-        {
-            Some(self.value)
-        } else {
-            None
-        }
-    }
-}

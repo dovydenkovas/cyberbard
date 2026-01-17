@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
-use crate::storage::stream::Stream;
+use crate::stream::stream::Stream;
 
 /// Track is container one Stream and it's settings.
 /// Composition implements Audio trait.

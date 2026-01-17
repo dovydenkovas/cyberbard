@@ -12,37 +12,13 @@
 //   GNU General Public License for more details.
 //
 //   You should have received a copy of the GNU General Public License
-//   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{collections::VecDeque, path::PathBuf};
+pub mod stream;
+mod threadstream;
+mod trackstream;
 
-use crate::{audio::audio::Audio, storage::storage::StorageCredentials};
-
-pub type Events = VecDeque<Event>;
-
-pub enum Event {
-    SetupStorage {
-        credentials: StorageCredentials,
-    },
-    SaveProject {
-        path: PathBuf,
-    },
-    Play {
-        audio: Audio,
-    },
-    AddAudioToComposition {
-        audio: Audio,
-    },
-    PlayerSync,
-    PlayerSetVolume {
-        volume: f32,
-    },
-    PlayerSetTrackVolume {
-        volume: f32,
-        playlist_index: usize,
-        index: usize,
-    },
-    Select {
-        audio: Audio,
-    },
+pub trait Opener {
+    fn source(&mut self) -> Result<Box<dyn rodio::Source + Send>, Box<dyn std::error::Error>>;
+    fn total_duration(&self) -> f32;
 }

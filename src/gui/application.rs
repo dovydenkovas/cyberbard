@@ -60,15 +60,17 @@ impl ApplicationImp {
         while let Some(event) = self.events.pop_front() {
             match event {
                 Event::SetupStorage { credentials } => {
-                    self.application.setup_storage(credentials);
-                    let storage = self.application.get_storage();
-                    let map = self.application.get_root_map();
-                    let player = self.application.get_player();
-                    let composition = self.application.get_selected_composition();
-                    self.storage_widget = StorageWidget::new(storage);
-                    self.map_widget = MapWidget::new(map);
-                    self.player_widget = PlayerWidget::new(player);
-                    self.playlist_widget = PlaylistWidget::new(composition);
+                    // TODO: show error message
+                    if self.application.setup_storage(credentials).is_ok() {
+                        let storage = self.application.get_storage();
+                        let map = self.application.get_root_map();
+                        let player = self.application.get_player();
+                        let composition = self.application.get_selected_composition();
+                        self.storage_widget = StorageWidget::new(storage);
+                        self.map_widget = MapWidget::new(map);
+                        self.player_widget = PlayerWidget::new(player);
+                        self.playlist_widget = PlaylistWidget::new(composition);
+                    }
                 }
                 Event::Play { audio } => {
                     self.player_widget.play(&audio);
@@ -79,9 +81,6 @@ impl ApplicationImp {
                     self.playlist_widget.insert_audio(Rc::clone(&audio));
                     self.application.player_sync();
                 }
-                Event::PlayerPlay => self.application.player_play(),
-                Event::PlayerPause => self.application.player_pause(),
-                Event::PlayerStop => self.application.player_stop(),
                 Event::PlayerSync => {
                     self.application.player_sync();
                     self.player_widget.play(

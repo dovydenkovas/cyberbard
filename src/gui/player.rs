@@ -27,7 +27,6 @@ use crate::{
 pub struct PlayerWidget {
     title: String,
     volume: f32,
-    is_pause: bool,
     player: Rc<RefCell<Player>>,
 }
 
@@ -36,31 +35,28 @@ impl PlayerWidget {
         let widget = PlayerWidget {
             title: "".to_string(),
             volume: 1.0,
-            is_pause: true,
             player,
         };
 
         widget
     }
 
-    fn toggle_pause(&mut self, events: &mut Events) {
-        self.is_pause = !self.is_pause;
-        if self.is_pause {
-            events.push_back(Event::PlayerPause)
+    fn toggle_pause(&mut self) {
+        if self.player.borrow().is_paused() {
+            self.player.borrow_mut().pause();
         } else {
-            events.push_back(Event::PlayerPlay)
+            self.player.borrow_mut().play();
         }
     }
 
-    fn stop(&mut self, events: &mut Events) {
-        events.push_back(Event::PlayerStop);
-        self.is_pause = true;
+    fn stop(&mut self) {
+        self.player.borrow_mut().stop();
     }
 
     pub fn play(&mut self, audio: &Audio) {
         self.title = audio.borrow().get_title();
         self.volume = audio.borrow().get_volume();
-        self.is_pause = false;
+        self.player.borrow_mut().play();
     }
 
     fn set_volume(&mut self, events: &mut Events) {
@@ -82,14 +78,18 @@ impl PlayerWidget {
         ui.add_space(10.0);
 
         ui.horizontal(|ui| {
-            let pause_char = if self.is_pause { "▶" } else { "⏸" };
+            let pause_char = if self.player.borrow().is_paused() {
+                "▶"
+            } else {
+                "⏸"
+            };
 
             if ui.button(pause_char).clicked() {
-                self.toggle_pause(events)
+                self.toggle_pause()
             }
 
             if ui.button("⏹").clicked() {
-                self.stop(events);
+                self.stop();
             }
 
             if ui
@@ -101,7 +101,7 @@ impl PlayerWidget {
         });
         ui.add_space(10.0);
 
-        if !self.is_pause {
+        if !self.player.borrow().is_paused() {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
     }
