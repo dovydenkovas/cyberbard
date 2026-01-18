@@ -94,7 +94,7 @@ impl ApplicationImp {
                 Event::PlayerSetVolume { volume } => self.application.player_set_volume(volume),
                 Event::PlayerSetTrackVolume {
                     volume,
-                    playlist_index,
+                    thread_index: playlist_index,
                     index,
                 } => self
                     .application

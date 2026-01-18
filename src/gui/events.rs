@@ -39,7 +39,7 @@ pub enum Event {
     },
     PlayerSetTrackVolume {
         volume: f32,
-        playlist_index: usize,
+        thread_index: usize,
         index: usize,
     },
     Select {
