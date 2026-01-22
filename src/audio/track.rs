@@ -26,7 +26,6 @@ use crate::stream::stream::Stream;
 pub struct Track {
     title: String,
     volume: f32,
-    is_looped_flag: bool,
     source: Box<dyn Source>,
 }
 
@@ -36,7 +35,6 @@ impl Track {
 
         Track {
             volume: 1.0,
-            is_looped_flag: true,
             source,
             title,
         }

@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, collections::BTreeMap, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, collections::{btree_map, BTreeMap}, path::PathBuf, rc::Rc};
 
 use egui::TextureHandle;
 use serde::{Deserialize, Serialize};
@@ -68,7 +68,7 @@ impl Map {
 
     pub fn iter_maps<'a>(
         &'a self,
-    ) -> std::collections::btree_map::Keys<'a, Point, Rc<RefCell<Map>>> {
+    ) -> btree_map::Keys<'a, Point, Rc<RefCell<Map>>> {
         self.maps.keys()
     }
 

@@ -26,7 +26,6 @@ use crate::stream::stream::Stream;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Composition {
     volume: f32,
-    is_looped_flag: bool,
     title: String,
     threads: Vec<(String, Vec<Audio>)>,
 }
@@ -37,7 +36,6 @@ impl Composition {
 
         Composition {
             volume: 1.0,
-            is_looped_flag: true,
             threads: Vec::new(),
             title,
         }
