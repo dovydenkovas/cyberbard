@@ -14,8 +14,9 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use rand::TryRngCore;
 use serde::{Deserialize, Serialize};
+
+use crate::colors::rand_color;
 
 /// Tag structures. Used to Sources in Storage classification.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -24,17 +25,7 @@ pub struct Tag {
     color: String,
 }
 
-fn rand_color() -> String {
-    // TODO: Generate beautiful random colors
-    let mut bytes = [0u8; 3];
-    let _ = rand::rngs::OsRng.try_fill_bytes(&mut bytes);
-    format!(
-        "#{:02x}{:02x}{:02x}",
-        bytes[0] / 4,
-        bytes[1] / 4,
-        bytes[2] / 4
-    )
-}
+
 
 impl Tag {
     pub fn new(text: String) -> Tag {

@@ -18,9 +18,11 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::{env, thread};
 
+use egui::{Style, Visuals};
 use rfd::MessageDialog;
 
 use crate::application::Application;
+use crate::colors;
 use crate::gui::events::Event;
 
 use super::map::MapWidget;
@@ -155,6 +157,14 @@ pub fn run_gui(application: crate::application::Application) {
     let _ = eframe::run_native(
         format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")).as_str(),
         options,
-        Box::new(|_cc| Ok(Box::new(ApplicationImp::new(application)))),
+        Box::new(|cc| {
+            let style = Style {
+                        visuals: Visuals::dark(),
+                        ..Style::default()
+                    };
+            colors::set_dark();
+            cc.egui_ctx.set_style(style);
+            Ok(Box::new(ApplicationImp::new(application)))
+        }),
     );
 }

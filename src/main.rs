@@ -30,10 +30,12 @@ mod map;
 mod player;
 mod storage;
 mod stream;
+mod colors;
 
 /// Application entry point.
 /// Initialize all structures and start player and application threads.
 fn main() {
+    colors::set_dark();
     // TODO: Allow startup without storage.
     let storage: Rc<RefCell<Box<dyn Storage>>> = Rc::new(RefCell::new(Box::new(
         LocalStorage::new("music".to_string()),

@@ -3,6 +3,9 @@ name = "cyberbard"
 version = "0.2.0"
 edition = "2024"
 
+[profile.release]
+debug = true
+
 [dependencies]
 eframe = "0.33.0"
 egui = "0.33.0"
