@@ -14,7 +14,10 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use egui::ecolor::rgb_from_hsv;
+use egui::{
+    Color32,
+    ecolor::{hsv_from_rgb, rgb_from_hsv},
+};
 use rand::Rng;
 
 static mut IS_DARK: bool = false;
@@ -31,6 +34,22 @@ pub fn set_dark() {
     unsafe {
         IS_DARK = true;
     }
+}
+
+pub fn reverse_color(color: String) -> String {
+    let rgb = Color32::from_hex(&color).unwrap();
+    let (h, s, v) = hsv_from_rgb([
+        rgb.r() as f32 / 255.0,
+        rgb.g() as f32 / 255.0,
+        rgb.b() as f32 / 255.0,
+    ]);
+    let bytes = rgb_from_hsv((h, 1.0 - s, 1.0 - v));
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        (255.0 * bytes[0]) as u8,
+        (255.0 * bytes[1]) as u8,
+        (255.0 * bytes[2]) as u8,
+    )
 }
 
 /// Create next preudorandom color.
@@ -69,9 +88,9 @@ fn next() -> f32 {
 }
 
 pub fn rand_dark_background() -> String {
-    let h: f32 = next();
+    let h = next();
     let s = 0.7;
-    let v = 0.3;
+    let v = 0.2;
     let bytes = rgb_from_hsv((h, s, v));
     format!(
         "#{:02x}{:02x}{:02x}",
@@ -82,9 +101,9 @@ pub fn rand_dark_background() -> String {
 }
 
 pub fn rand_light_background() -> String {
-    let h: f32 = next();
+    let h = next();
     let s = 0.3;
-    let v = 0.9;
+    let v = 0.8;
     let bytes = rgb_from_hsv((h, s, v));
     format!(
         "#{:02x}{:02x}{:02x}",

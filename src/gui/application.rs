@@ -14,19 +14,23 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::{env, thread};
 
-use egui::{Style, Visuals};
+use eframe::NativeOptions;
+use egui::{Style, ViewportBuilder, Visuals};
 use rfd::MessageDialog;
 
 use crate::application::Application;
+use crate::colors;
 use crate::gui::events::Event;
+use crate::settings::Settings;
 
+use super::composition::CompositionWidget;
 use super::map::MapWidget;
 use super::player::PlayerWidget;
-use super::composition::CompositionWidget;
 use super::storage::StorageWidget;
 
 /// Describe Cyberbard main window.
@@ -38,11 +42,12 @@ pub struct ApplicationImp {
     map_widget: MapWidget,
     player_widget: PlayerWidget,
     composition_widget: CompositionWidget,
+    settings: Rc<RefCell<Settings>>,
 }
 
 impl ApplicationImp {
     /// Create main window struct
-    pub fn new(application: Application) -> ApplicationImp {
+    pub fn new(application: Application, settings: Rc<RefCell<Settings>>) -> ApplicationImp {
         let storage = application.get_storage();
         let map = application.get_root_map();
         let player = application.get_player();
@@ -54,10 +59,11 @@ impl ApplicationImp {
             map_widget: MapWidget::new(map),
             player_widget: PlayerWidget::new(player),
             composition_widget: CompositionWidget::new(composition),
+            settings,
         }
     }
 
-    fn handle_events(&mut self) {
+    fn handle_events(&mut self, ctx: &egui::Context) {
         while let Some(event) = self.events.pop_front() {
             match event {
                 Event::SetupStorage { credentials } => {
@@ -118,6 +124,18 @@ impl ApplicationImp {
                         });
                     }
                 },
+                Event::ToggleTheme => {
+                    let is_dark = self.settings.borrow().dark_theme;
+                    if is_dark {
+                        colors::set_light();
+                        ctx.set_visuals(egui::Visuals::light());
+                        self.settings.borrow_mut().dark_theme = false;
+                    } else {
+                        colors::set_dark();
+                        ctx.set_visuals(egui::Visuals::dark());
+                        self.settings.borrow_mut().dark_theme = true;
+                    }
+                }
             }
         }
     }
@@ -125,7 +143,7 @@ impl ApplicationImp {
 
 impl eframe::App for ApplicationImp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.handle_events();
+        self.handle_events(ctx);
 
         egui::SidePanel::left("Storage")
             .resizable(true)
@@ -151,18 +169,28 @@ impl eframe::App for ApplicationImp {
     }
 }
 
-pub fn run_gui(application: crate::application::Application) {
-    let options = eframe::NativeOptions::default();
+pub fn run_gui(application: crate::application::Application, settings: Rc<RefCell<Settings>>) {
+    let options = NativeOptions {
+        viewport: ViewportBuilder::default().with_inner_size(&settings.borrow().default_size),
+        ..Default::default()
+    };
+
     let _ = eframe::run_native(
         format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")).as_str(),
         options,
         Box::new(|cc| {
+            let visuals = if settings.borrow().dark_theme {
+                Visuals::dark()
+            } else {
+                Visuals::light()
+            };
+
             let style = Style {
-                        visuals: Visuals::dark(),
-                        ..Style::default()
-                    };
+                visuals: visuals,
+                ..Style::default()
+            };
             cc.egui_ctx.set_style(style);
-            Ok(Box::new(ApplicationImp::new(application)))
+            Ok(Box::new(ApplicationImp::new(application, settings)))
         }),
     );
 }

@@ -43,5 +43,6 @@ pub trait Storage: erased_serde::Serialize {
     fn remove_tag(&mut self, name: String);
     fn add_tag(&mut self);
     fn set_tag_color(&mut self, tag: String, color: String);
+    fn reverse_colors(&mut self);
     fn find(&self, substr: String) -> Vec<usize>;
 }

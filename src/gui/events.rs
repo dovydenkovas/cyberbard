@@ -45,4 +45,5 @@ pub enum Event {
     Select {
         audio: Audio,
     },
+    ToggleTheme
 }

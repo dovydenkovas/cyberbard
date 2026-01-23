@@ -110,6 +110,10 @@ impl StorageWidget {
             if ui.button("💾".to_string()).clicked() {
                 self.save_project(events)
             };
+            if ui.button("🌙".to_string()).clicked() {
+                events.push_back(Event::ToggleTheme);
+                self.storage.borrow_mut().reverse_colors();
+            };
             ui.vertical_centered(|ui| {
                 if let Some(new_caption) = self.caption.update(ui) {
                     self.storage.borrow_mut().set_caption(new_caption);

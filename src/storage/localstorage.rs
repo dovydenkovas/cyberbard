@@ -16,7 +16,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::storage::StorageCredentials;
+use crate::{colors, storage::StorageCredentials};
 use crate::storage::tag::Tag;
 use crate::stream::Stream;
 
@@ -201,6 +201,14 @@ impl Storage for LocalStorage {
                 tag.set_color(color);
                 break;
             }
+        }
+    }
+
+    fn reverse_colors(&mut self) {
+        for tag in &mut self.tags {
+            let color = tag.get_color();
+            let color = colors::reverse_color(color);
+            tag.set_color(color);
         }
     }
 
