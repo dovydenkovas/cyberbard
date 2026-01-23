@@ -27,7 +27,7 @@ use crate::gui::events::Event;
 
 use super::map::MapWidget;
 use super::player::PlayerWidget;
-use super::playlist::PlaylistWidget;
+use super::composition::CompositionWidget;
 use super::storage::StorageWidget;
 
 /// Describe Cyberbard main window.
@@ -38,7 +38,7 @@ pub struct ApplicationImp {
     storage_widget: StorageWidget,
     map_widget: MapWidget,
     player_widget: PlayerWidget,
-    playlist_widget: PlaylistWidget,
+    composition_widget: CompositionWidget,
 }
 
 impl ApplicationImp {
@@ -54,7 +54,7 @@ impl ApplicationImp {
             storage_widget: StorageWidget::new(storage),
             map_widget: MapWidget::new(map),
             player_widget: PlayerWidget::new(player),
-            playlist_widget: PlaylistWidget::new(composition),
+            composition_widget: CompositionWidget::new(composition),
         }
     }
 
@@ -71,7 +71,7 @@ impl ApplicationImp {
                         self.storage_widget = StorageWidget::new(storage);
                         self.map_widget = MapWidget::new(map);
                         self.player_widget = PlayerWidget::new(player);
-                        self.playlist_widget = PlaylistWidget::new(composition);
+                        self.composition_widget = CompositionWidget::new(composition);
                     }
                 }
                 Event::Play { audio } => {
@@ -80,7 +80,7 @@ impl ApplicationImp {
                     self.application.player_play();
                 }
                 Event::AddAudioToComposition { audio } => {
-                    self.playlist_widget.insert_audio(Rc::clone(&audio));
+                    self.composition_widget.insert_audio(Rc::clone(&audio));
                     self.application.player_sync();
                 }
                 Event::PlayerSync => {
@@ -96,15 +96,15 @@ impl ApplicationImp {
                 Event::PlayerSetVolume { volume } => self.application.player_set_volume(volume),
                 Event::PlayerSetTrackVolume {
                     volume,
-                    thread_index: playlist_index,
+                    composition_index,
                     index,
                 } => self
                     .application
-                    .player_set_track_volume(volume, playlist_index, index),
+                    .player_set_track_volume(volume, composition_index, index),
 
                 Event::Select { audio } => {
                     self.application.set_selected_composition(Some(audio));
-                    self.playlist_widget.sync_with_application();
+                    self.composition_widget.sync_with_application();
                 }
                 Event::SaveProject { path } => match self.application.save_project(path) {
                     Ok(_) => (),
@@ -143,7 +143,7 @@ impl eframe::App for ApplicationImp {
             .show(ctx, |ui| {
                 self.player_widget.update(ctx, ui, &mut self.events);
                 ui.separator();
-                self.playlist_widget.update(ctx, ui, &mut self.events);
+                self.composition_widget.update(ctx, ui, &mut self.events);
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {

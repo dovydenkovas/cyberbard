@@ -125,8 +125,8 @@ impl RawAudio for Composition {
         Ok(self.threads.iter().map(|k| k.0.clone()).collect())
     }
 
-    fn push_audio(&mut self, caption: &String, audio: Audio) -> Result<(), AudioError> {
-        match self.find_thread(caption) {
+    fn push_audio(&mut self, thread: &String, audio: Audio) -> Result<(), AudioError> {
+        match self.find_thread(thread) {
             Some(i) => {
                 self.threads[i].1.push(audio);
                 Ok(())
@@ -135,8 +135,8 @@ impl RawAudio for Composition {
         }
     }
 
-    fn remove_audio(&mut self, caption: &String, index: usize) -> Result<(), AudioError> {
-        match self.find_thread(caption) {
+    fn remove_audio(&mut self, thread: &String, index: usize) -> Result<(), AudioError> {
+        match self.find_thread(thread) {
             Some(i) => {
                 self.threads[i].1.remove(index);
                 Ok(())
@@ -145,25 +145,25 @@ impl RawAudio for Composition {
         }
     }
 
-    fn get_audio(&self, caption: &String, index: usize) -> Result<Audio, AudioError> {
-        if !self.contains_thread(caption) {
+    fn get_audio(&self, thread: &String, index: usize) -> Result<Audio, AudioError> {
+        if !self.contains_thread(thread) {
             return Err(AudioError::OutOfRange);
         }
 
-        match self.threads[self.find_thread(caption).unwrap()]
+        match self.threads[self.find_thread(thread).unwrap()]
             .1
             .len()
             .cmp(&index)
         {
             std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
             std::cmp::Ordering::Greater => {
-                Ok(self.threads[self.find_thread(caption).unwrap()].1[index].clone())
+                Ok(self.threads[self.find_thread(thread).unwrap()].1[index].clone())
             }
         }
     }
 
-    fn audio_count(&self, caption: &String) -> usize {
-        match self.find_thread(caption) {
+    fn audio_count(&self, thread: &String) -> usize {
+        match self.find_thread(thread) {
             Some(i) => self.threads[i].1.len(),
             None => 0,
         }

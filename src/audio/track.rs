@@ -89,19 +89,19 @@ impl RawAudio for Track {
         Err(AudioError::NotAComposition)
     }
 
-    fn push_audio(&mut self, _playlist: &String, _audio: Audio) -> Result<(), AudioError> {
+    fn push_audio(&mut self, _thread: &String, _audio: Audio) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn remove_audio(&mut self, _playlist: &String, _index: usize) -> Result<(), AudioError> {
+    fn remove_audio(&mut self, _thread: &String, _index: usize) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn get_audio(&self, _playlist: &String, _index: usize) -> Result<Audio, AudioError> {
+    fn get_audio(&self, _thread: &String, _index: usize) -> Result<Audio, AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn audio_count(&self, _playlist: &String) -> usize {
+    fn audio_count(&self, _thread: &String) -> usize {
         return 0;
     }
 }

@@ -41,10 +41,10 @@ pub trait RawAudio: erased_serde::Serialize {
     fn remove_thread(&mut self, caption: &String);
     fn threads(&self) -> Result<Vec<String>, AudioError>;
 
-    fn push_audio(&mut self, playlist: &String, audio: Audio) -> Result<(), AudioError>;
-    fn remove_audio(&mut self, playlist: &String, index: usize) -> Result<(), AudioError>;
-    fn get_audio(&self, playlst: &String, index: usize) -> Result<Audio, AudioError>;
-    fn audio_count(&self, playlist: &String) -> usize;
+    fn push_audio(&mut self, thread: &String, audio: Audio) -> Result<(), AudioError>;
+    fn remove_audio(&mut self, thread: &String, index: usize) -> Result<(), AudioError>;
+    fn get_audio(&self, thread: &String, index: usize) -> Result<Audio, AudioError>;
+    fn audio_count(&self, thread: &String) -> usize;
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

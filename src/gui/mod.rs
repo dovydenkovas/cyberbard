@@ -18,6 +18,6 @@ pub mod application;
 mod events;
 mod map;
 mod player;
-mod playlist;
+mod composition;
 mod storage;
 mod widgets;

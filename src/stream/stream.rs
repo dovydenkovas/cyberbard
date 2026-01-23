@@ -28,14 +28,14 @@ static ref OSTREAM: Mutex<rodio::OutputStream> =
 }
 
 pub struct Stream {
-    playlists: Vec<ThreadStream>,
+    threads: Vec<ThreadStream>,
     total_volume: f32,
 }
 
 impl Stream {
     pub fn new(threads: Vec<ThreadStream>, total_volume: f32) -> Stream {
         Stream {
-            playlists: threads,
+            threads,
             total_volume,
         }
     }
@@ -48,85 +48,85 @@ impl Stream {
         )
         .unwrap();
         Stream {
-            playlists: vec![pl],
+            threads: vec![pl],
             total_volume: 0.0,
         }
     }
 
     pub fn set_total_volume(&mut self, volume: f32) {
         self.total_volume = volume;
-        for pl in self.playlists.iter_mut() {
+        for pl in self.threads.iter_mut() {
             pl.update_volume(volume);
         }
     }
 
-    pub fn set_partial_volume(&mut self, volume: f32, playlist: usize, audio_index: usize) {
-        self.playlists[playlist].set_partial_volume(volume, audio_index);
+    pub fn set_partial_volume(&mut self, volume: f32, thread_index: usize, audio_index: usize) {
+        self.threads[thread_index].set_partial_volume(volume, audio_index);
     }
 
     pub fn is_empty(&self) -> bool {
-        self.playlists.len() == 0
+        self.threads.len() == 0
     }
 
-    pub fn get_playlists(self) -> Vec<ThreadStream> {
-        self.playlists
+    pub fn get_threads(self) -> Vec<ThreadStream> {
+        self.threads
     }
 
     pub fn merge(&mut self, other: Stream) {
-        for (i, pl) in other.playlists.into_iter().enumerate() {
-            if i < self.playlists.len() {
-                self.playlists[i].extend(pl);
+        for (i, pl) in other.threads.into_iter().enumerate() {
+            if i < self.threads.len() {
+                self.threads[i].extend(pl);
             } else {
-                self.playlists.extend(vec![pl]);
+                self.threads.extend(vec![pl]);
             }
         }
     }
 
     pub fn sync(&mut self, new: Stream) {
         self.total_volume = new.total_volume;
-        for (i, pl) in new.playlists.into_iter().enumerate() {
-            if i < self.playlists.len() {
-                self.playlists[i].replace_sources(pl.tracks);
-                self.playlists[i].update_volume(self.total_volume);
+        for (i, pl) in new.threads.into_iter().enumerate() {
+            if i < self.threads.len() {
+                self.threads[i].replace_sources(pl.tracks);
+                self.threads[i].update_volume(self.total_volume);
             } else {
-                self.playlists.extend(vec![pl]);
-                self.playlists[i].update_volume(self.total_volume);
+                self.threads.extend(vec![pl]);
+                self.threads[i].update_volume(self.total_volume);
             }
         }
     }
 
     pub fn merge_parallel(&mut self, other: Stream) {
-        self.playlists.extend(other.playlists);
+        self.threads.extend(other.threads);
     }
 
     pub fn play(&mut self) {
-        for playlist in self.playlists.iter_mut() {
-            playlist.play();
+        for thread in self.threads.iter_mut() {
+            thread.play();
         }
     }
 
     pub fn pause(&mut self) {
-        for playlist in self.playlists.iter_mut() {
-            playlist.pause();
+        for thread in self.threads.iter_mut() {
+            thread.pause();
         }
     }
 
     pub fn stop(&mut self) {
-        for playlist in self.playlists.iter_mut() {
-            playlist.stop();
+        for thread in self.threads.iter_mut() {
+            thread.stop();
         }
     }
 
     pub fn get_position(&self) -> f32 {
-        match self.playlists.get(0) {
+        match self.threads.get(0) {
             Some(pl) => pl.get_position(),
             None => 0.0,
         }
     }
 
     pub fn update(&mut self) {
-        for playlist in self.playlists.iter_mut() {
-            playlist.update();
+        for thread in self.threads.iter_mut() {
+            thread.update();
         }
         std::thread::sleep(Duration::from_millis(5));
     }

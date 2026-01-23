@@ -39,7 +39,7 @@ pub enum Event {
     },
     PlayerSetTrackVolume {
         volume: f32,
-        thread_index: usize,
+        composition_index: usize,
         index: usize,
     },
     Select {

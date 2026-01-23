@@ -103,14 +103,14 @@ impl Application {
         self.player.borrow_mut().set_volume(volume);
     }
 
-    pub fn player_set_track_volume(&mut self, volume: f32, playlist_index: usize, index: usize) {
+    pub fn player_set_track_volume(&mut self, volume: f32, composition_index: usize, index: usize) {
         if Rc::ptr_eq(
             &self.selected_compostion.borrow().as_ref().unwrap(),
             &self.current_playing.borrow().as_ref().unwrap(),
         ) {
             self.player
                 .borrow_mut()
-                .set_track_volume(volume, playlist_index, index);
+                .set_track_volume(volume, composition_index, index);
         }
     }
 

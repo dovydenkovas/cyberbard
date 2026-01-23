@@ -26,15 +26,15 @@ use crate::{
     },
 };
 
-pub struct PlaylistWidget {
+pub struct CompositionWidget {
     title: EditableHeader,
     composition: Rc<RefCell<Option<Audio>>>,
     current_thread: Option<String>,
 }
 
-impl PlaylistWidget {
-    pub fn new(composition: Rc<RefCell<Option<Audio>>>) -> PlaylistWidget {
-        PlaylistWidget {
+impl CompositionWidget {
+    pub fn new(composition: Rc<RefCell<Option<Audio>>>) -> CompositionWidget {
+        CompositionWidget {
             title: EditableHeader::new("".to_string()),
             composition,
             current_thread: None,
@@ -228,7 +228,7 @@ impl PlaylistWidget {
                         audio.borrow_mut().set_volume(volume);
                         events.push_back(Event::PlayerSetTrackVolume {
                             volume: volume,
-                            thread_index: self
+                            composition_index: self
                                 .composition
                                 .borrow()
                                 .as_ref()

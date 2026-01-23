@@ -76,20 +76,20 @@ impl MapWidget {
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         if self.hide_map {
-            self.render_playlists(ctx, ui, events);
+            self.render_compositions(ctx, ui, events);
         } else {
             egui::SidePanel::left("Tracks")
                 .resizable(true)
                 .default_width(200.0)
                 .show_inside(ui, |ui| {
-                    self.render_playlists(ctx, ui, events);
+                    self.render_compositions(ctx, ui, events);
                 });
             ui.add_space(10.0);
             self.render_map_widget(ctx, ui);
         }
     }
 
-    fn render_playlists(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
+    fn render_compositions(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
