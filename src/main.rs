@@ -20,17 +20,17 @@ use crate::{
     application::Application,
     map::Map,
     player::Player,
-    storage::{localstorage::LocalStorage, storage::Storage},
+    storage::{localstorage::LocalStorage, Storage},
 };
 
 mod application;
 mod audio;
+mod colors;
 mod gui;
 mod map;
 mod player;
 mod storage;
 mod stream;
-mod colors;
 
 /// Application entry point.
 /// Initialize all structures and start player and application threads.

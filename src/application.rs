@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Map, Player, Storage,
-    audio::audio::{Audio, AudioCell},
-    storage::storage::StorageCredentials,
+    audio::{Audio, AudioCell},
+    storage::StorageCredentials,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -105,8 +105,8 @@ impl Application {
 
     pub fn player_set_track_volume(&mut self, volume: f32, composition_index: usize, index: usize) {
         if Rc::ptr_eq(
-            &self.selected_compostion.borrow().as_ref().unwrap(),
-            &self.current_playing.borrow().as_ref().unwrap(),
+            self.selected_compostion.borrow().as_ref().unwrap(),
+            self.current_playing.borrow().as_ref().unwrap(),
         ) {
             self.player
                 .borrow_mut()
@@ -115,17 +115,16 @@ impl Application {
     }
 
     pub fn player_sync(&mut self) {
-        if self.current_playing.borrow().is_some() {
-            if let Some(stream) = self
+        if self.current_playing.borrow().is_some()
+            && let Some(stream) = self
                 .current_playing
                 .borrow()
                 .as_ref()
                 .unwrap()
                 .borrow()
                 .get_stream()
-            {
-                self.player.borrow_mut().sync(stream);
-            }
+        {
+            self.player.borrow_mut().sync(stream);
         }
     }
 
@@ -138,7 +137,7 @@ impl Application {
     pub fn open_local_project(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         match find_yaml_files(&path) {
             Ok(files) => {
-                if files.len() == 0 {
+                if files.is_empty() {
                     self.storage
                         .borrow_mut()
                         .setup_storage(StorageCredentials::Local { path });
@@ -176,12 +175,11 @@ fn find_yaml_files(dir_path: &PathBuf) -> io::Result<Vec<std::path::PathBuf>> {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() {
-            if let Some(extension) = path.extension() {
-                if extension == "yaml" || extension == "yml" {
-                    yaml_files.push(path);
-                }
-            }
+        if path.is_file()
+            && let Some(extension) = path.extension()
+            && (extension == "yaml" || extension == "yml")
+        {
+            yaml_files.push(path);
         }
     }
 

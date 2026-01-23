@@ -14,18 +14,18 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
-    audio::{audio::Audio, track::Track},
+    audio::{Audio, track::Track},
     gui::{
         events::{Event, Events},
         widgets,
     },
-    storage::storage::{Storage, StorageCredentials},
+    storage::{Storage, StorageCredentials},
 };
 
 pub struct StorageWidget {
@@ -74,7 +74,7 @@ impl StorageWidget {
 
         if let Some(path) = path {
             events.push_back(Event::SaveProject {
-                path: PathBuf::from(path),
+                path
             });
         }
     }
@@ -151,7 +151,7 @@ impl StorageWidget {
     fn render_music(&mut self, ui: &mut Ui, index: usize, events: &mut Events) -> Option<String> {
         let mut new_search_pattern = None;
         ui.horizontal(|ui| {
-            let title_label = Label::new(&self.storage.borrow().get(index).unwrap().get_title())
+            let title_label = Label::new(self.storage.borrow().get(index).unwrap().get_title())
                 .sense(Sense::click())
                 .selectable(false);
             let ui_label = ui.add(title_label);
@@ -176,10 +176,10 @@ impl StorageWidget {
                     frame.show(ui, |ui| {
                         let response = if total_length > 20 {
                             ui.add(Label::new("   ").sense(Sense::hover()))
-                                .on_hover_text(&tag.get_text())
+                                .on_hover_text(tag.get_text())
                         } else {
                             total_length += tag.get_text().len();
-                            ui.add(Label::new(&tag.get_text()))
+                            ui.add(Label::new(tag.get_text()))
                         };
 
                         // Search tag on clicked.

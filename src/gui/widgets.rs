@@ -25,13 +25,11 @@ impl EditableHeader {
             } else {
                 None
             }
+        } else if ui.heading(&self.text).double_clicked() {
+            self.is_editing = true;
+            None
         } else {
-            if ui.heading(&self.text).double_clicked() {
-                self.is_editing = true;
-                None
-            } else {
-                None
-            }
+            None
         }
     }
 }

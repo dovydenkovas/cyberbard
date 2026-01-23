@@ -25,8 +25,6 @@ pub struct Tag {
     color: String,
 }
 
-
-
 impl Tag {
     pub fn new(text: String) -> Tag {
         let mut tag = Tag {
@@ -70,8 +68,8 @@ impl Tag {
         }
     }
 
-    fn is_correct_color(&self, color: &String) -> bool {
-        if color.len() != 7 || color.chars().next().unwrap() != '#' {
+    fn is_correct_color(&self, color: &str) -> bool {
+        if color.len() != 7 || !color.starts_with('#') {
             return false;
         }
 
@@ -80,7 +78,7 @@ impl Tag {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 

@@ -16,7 +16,7 @@
 
 use std::{collections::VecDeque, path::PathBuf};
 
-use crate::{audio::audio::Audio, storage::storage::StorageCredentials};
+use crate::{audio::Audio, storage::StorageCredentials};
 
 pub type Events = VecDeque<Event>;
 

@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use crate::stream::stream::Stream;
+use crate::stream::Stream;
 
 /// Source trait describe interface of music in storage.
 /// Provides audio Stream and title.

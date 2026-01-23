@@ -16,9 +16,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::audio::audio::{Audio, AudioError, RawAudio};
+use crate::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
-use crate::stream::stream::Stream;
+use crate::stream::Stream;
 
 /// Track is container one Stream and it's settings.
 /// Composition implements Audio trait.
@@ -73,15 +73,15 @@ impl RawAudio for Track {
         Some(s)
     }
 
-    fn push_thread(&mut self, _caption: &String) -> Result<(), AudioError> {
+    fn push_thread(&mut self, _caption: &str) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn rename_thread(&mut self, _old_caption: &String, _new_caption: &String) {
+    fn rename_thread(&mut self, _old_caption: &str, _new_caption: &str) {
         // Not implemented for track
     }
 
-    fn remove_thread(&mut self, _caption: &String) {
+    fn remove_thread(&mut self, _caption: &str) {
         // Not implemented for track
     }
 
@@ -89,19 +89,19 @@ impl RawAudio for Track {
         Err(AudioError::NotAComposition)
     }
 
-    fn push_audio(&mut self, _thread: &String, _audio: Audio) -> Result<(), AudioError> {
+    fn push_audio(&mut self, _thread: &str, _audio: Audio) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn remove_audio(&mut self, _thread: &String, _index: usize) -> Result<(), AudioError> {
+    fn remove_audio(&mut self, _thread: &str, _index: usize) -> Result<(), AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn get_audio(&self, _thread: &String, _index: usize) -> Result<Audio, AudioError> {
+    fn get_audio(&self, _thread: &str, _index: usize) -> Result<Audio, AudioError> {
         Err(AudioError::NotAComposition)
     }
 
-    fn audio_count(&self, _thread: &String) -> usize {
-        return 0;
+    fn audio_count(&self, _thread: &str) -> usize {
+        0
     }
 }

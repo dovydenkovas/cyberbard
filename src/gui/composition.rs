@@ -19,7 +19,7 @@ use std::{cell::RefCell, rc::Rc};
 use egui::{Label, Sense, Slider, TextEdit, Ui};
 
 use crate::{
-    audio::audio::Audio,
+    audio::Audio,
     gui::{
         events::{Event, Events},
         widgets::EditableHeader,
@@ -52,7 +52,7 @@ impl CompositionWidget {
         if let Some(composition) = self.composition.borrow_mut().as_ref() {
             let thread = if let Some(thread) = &self.current_thread {
                 thread.clone()
-            } else if let Some(thread) = composition.borrow().threads().unwrap().get(0) {
+            } else if let Some(thread) = composition.borrow().threads().unwrap().first() {
                 thread.clone()
             } else {
                 let thread = generate_thread_name(Vec::new());
@@ -60,10 +60,7 @@ impl CompositionWidget {
                 thread
             };
 
-            composition
-                .borrow_mut()
-                .push_audio(&thread, audio)
-                .unwrap();
+            composition.borrow_mut().push_audio(&thread, audio).unwrap();
         }
     }
 
@@ -155,8 +152,7 @@ impl CompositionWidget {
         ui.horizontal(|ui| {
             let mut title = thread.clone();
             let title_edit = ui.add(
-                if self.current_thread.is_some()
-                    && &title == self.current_thread.as_ref().unwrap()
+                if self.current_thread.is_some() && &title == self.current_thread.as_ref().unwrap()
                 {
                     TextEdit::singleline(&mut title).text_color(ui.visuals().strong_text_color())
                 } else {
@@ -184,7 +180,6 @@ impl CompositionWidget {
                     .unwrap()
                     .borrow_mut()
                     .remove_thread(thread);
-                return;
             }
         });
 
@@ -195,7 +190,7 @@ impl CompositionWidget {
             .as_ref()
             .unwrap()
             .borrow()
-            .audio_count(&thread);
+            .audio_count(thread);
 
         for i in 0..n {
             // TODO: set labels clickable to select a track in the thread.
@@ -205,7 +200,7 @@ impl CompositionWidget {
                 .as_ref()
                 .unwrap()
                 .borrow()
-                .get_audio(&thread, i)
+                .get_audio(thread, i)
                 .unwrap();
 
             ui.horizontal(|ui| {
@@ -227,7 +222,7 @@ impl CompositionWidget {
                     {
                         audio.borrow_mut().set_volume(volume);
                         events.push_back(Event::PlayerSetTrackVolume {
-                            volume: volume,
+                            volume,
                             composition_index: self
                                 .composition
                                 .borrow()
@@ -237,7 +232,7 @@ impl CompositionWidget {
                                 .threads()
                                 .unwrap()
                                 .iter()
-                                .position(|s| &s == &thread)
+                                .position(|s| s == thread)
                                 .unwrap(),
                             index: i,
                         });
@@ -250,7 +245,7 @@ impl CompositionWidget {
         ui.add_space(20.0);
     }
 
-    fn remove_composition(&mut self, thread: &String, index: usize) {
+    fn remove_composition(&mut self, thread: &str, index: usize) {
         let _ = self
             .composition
             .borrow()

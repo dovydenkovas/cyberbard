@@ -14,6 +14,45 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pub mod audio;
 pub mod composition;
 pub mod track;
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use serde::{Deserialize, Serialize};
+
+use crate::storage::source::Source;
+use crate::stream::Stream;
+
+pub type Audio = Rc<RefCell<Box<dyn RawAudio>>>;
+pub type AudioCell = Rc<RefCell<Option<Audio>>>;
+
+/// Audio trait. Describe Track and Composition interface.
+#[typetag::serde(tag = "type")]
+pub trait RawAudio: erased_serde::Serialize {
+    fn get_title(&self) -> String;
+    fn set_title(&mut self, title: String);
+    fn get_source(&self) -> Result<Box<dyn Source>, AudioError>;
+    fn set_source(&mut self, source: Box<dyn Source>);
+    fn get_volume(&self) -> f32;
+    fn set_volume(&mut self, volume: f32);
+    fn get_stream(&self) -> Option<Stream>;
+
+    fn push_thread(&mut self, caption: &str) -> Result<(), AudioError>;
+    fn rename_thread(&mut self, old_caption: &str, new_caption: &str);
+    fn remove_thread(&mut self, caption: &str);
+    fn threads(&self) -> Result<Vec<String>, AudioError>;
+
+    fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError>;
+    fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError>;
+    fn get_audio(&self, thread: &str, index: usize) -> Result<Audio, AudioError>;
+    fn audio_count(&self, thread: &str) -> usize;
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum AudioError {
+    NotAComposition,
+    NotATrack,
+    OutOfRange,
+}

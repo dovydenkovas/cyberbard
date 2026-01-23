@@ -14,12 +14,14 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-use std::{cell::RefCell, collections::{btree_map, BTreeMap}, path::PathBuf, rc::Rc};
+use std::{
+    cell::RefCell, cmp::Ordering, collections::{btree_map, BTreeMap}, path::PathBuf, rc::Rc
+};
 
 use egui::TextureHandle;
 use serde::{Deserialize, Serialize};
 
-use crate::audio::{audio::Audio, composition::Composition};
+use crate::audio::{Audio, composition::Composition};
 
 #[derive(Serialize, Deserialize)]
 pub struct Map {
@@ -60,15 +62,13 @@ impl Map {
     }
 
     pub fn get_map(&self, child: &Point) -> Option<Rc<RefCell<Map>>> {
-        match self.maps.get(&child) {
+        match self.maps.get(child) {
             Some(v) => Some(Rc::clone(v)),
             None => None,
         }
     }
 
-    pub fn iter_maps<'a>(
-        &'a self,
-    ) -> btree_map::Keys<'a, Point, Rc<RefCell<Map>>> {
+    pub fn iter_maps<'a>(&'a self) -> btree_map::Keys<'a, Point, Rc<RefCell<Map>>> {
         self.maps.keys()
     }
 
@@ -115,13 +115,19 @@ impl Map {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Point {
     pub x: f32,
     pub y: f32,
 }
 
 impl Eq for Point {}
+
+impl PartialOrd for Point {
+    fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
+       Some(self.cmp(other))
+    }
+}
 
 impl Ord for Point {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {

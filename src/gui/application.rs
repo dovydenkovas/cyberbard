@@ -22,7 +22,6 @@ use egui::{Style, Visuals};
 use rfd::MessageDialog;
 
 use crate::application::Application;
-use crate::colors;
 use crate::gui::events::Event;
 
 use super::map::MapWidget;
@@ -162,7 +161,6 @@ pub fn run_gui(application: crate::application::Application) {
                         visuals: Visuals::dark(),
                         ..Style::default()
                     };
-            colors::set_dark();
             cc.egui_ctx.set_style(style);
             Ok(Box::new(ApplicationImp::new(application)))
         }),

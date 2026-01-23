@@ -16,5 +16,32 @@
 
 pub mod localstorage;
 pub mod source;
-pub mod storage;
 pub mod tag;
+
+use source::Source;
+use std::path::PathBuf;
+use tag::Tag;
+
+pub enum StorageCredentials {
+    Local { path: PathBuf },
+}
+
+/// Storage trait describe interface to audio sources manipulation.
+#[typetag::serde(tag = "type")]
+pub trait Storage: erased_serde::Serialize {
+    fn get_caption(&self) -> String;
+    fn set_caption(&mut self, new_caption: String);
+    fn load_sources(&mut self);
+    fn setup_storage(&mut self, cred: StorageCredentials);
+    fn get(&self, index: usize) -> Option<Box<dyn Source>>;
+    fn get_tags(&self, index: usize) -> Vec<&Tag>;
+    fn all_tags(&self, index: usize) -> Vec<(Tag, bool)>;
+    fn len(&self) -> usize;
+    fn attach_tag(&mut self, index: usize, tag: String);
+    fn unattach_tag(&mut self, index: usize, tag: String);
+    fn rename_tag(&mut self, old_name: String, new_name: String);
+    fn remove_tag(&mut self, name: String);
+    fn add_tag(&mut self);
+    fn set_tag_color(&mut self, tag: String, color: String);
+    fn find(&self, substr: String) -> Vec<usize>;
+}

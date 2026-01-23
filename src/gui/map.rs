@@ -17,7 +17,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use crate::{
-    audio::audio::Audio,
+    audio::Audio,
     gui::events::{Event, Events},
     map::{Map, Point},
 };
@@ -43,8 +43,8 @@ impl MapWidget {
 
     fn goto_parent_map(&mut self) {
         let map = self.map.borrow().get_parent();
-        if map.is_some() {
-            self.map = map.unwrap();
+        if let Some(map) = map {
+            self.map = map;
             self.is_root = self.map.borrow().get_parent().is_none();
             self.hide_map = self.map.borrow().get_background().is_none();
         }
@@ -52,8 +52,8 @@ impl MapWidget {
 
     fn goto_child_map(&mut self, point: Point) {
         let map = self.map.borrow().get_map(&point);
-        if map.is_some() {
-            self.map = map.unwrap();
+        if let Some(map) = map {
+            self.map = map;
             self.is_root = self.map.borrow().get_parent().is_none();
             self.hide_map = self.map.borrow().get_background_path().is_none();
         }
@@ -97,10 +97,8 @@ impl MapWidget {
                 if ui.button(hide_label.to_string()).clicked() {
                     self.hide_map = !self.hide_map;
                 };
-                if !self.is_root {
-                    if ui.button("⬆").clicked() {
-                        self.goto_parent_map();
-                    }
+                if !self.is_root && ui.button("⬆").clicked() {
+                    self.goto_parent_map();
                 }
                 ui.vertical(|ui| {
                     // TODO: not real centered for now
@@ -268,16 +266,13 @@ impl MapWidget {
     }
 
     fn try_load_background(&mut self, ctx: &egui::Context, path: PathBuf) {
-        match load_image_from_path(path.to_str().unwrap()) {
-            Ok(image_data) => {
-                let handle = ctx.load_texture(
-                    path.to_str().unwrap(), // A unique name for the texture
-                    image_data,
-                    Default::default(),
-                );
-                self.map.borrow_mut().set_background(path, handle);
-            }
-            Err(_) => (),
+        if let Ok(image_data) = load_image_from_path(path.to_str().unwrap()) {
+            let handle = ctx.load_texture(
+                path.to_str().unwrap(), // A unique name for the texture
+                image_data,
+                Default::default(),
+            );
+            self.map.borrow_mut().set_background(path, handle);
         }
     }
 }
@@ -301,7 +296,7 @@ fn load_image_from_path(path: &str) -> Result<egui::ColorImage, String> {
 
     let texture = egui::ColorImage::from_rgba_premultiplied(
         [width as usize, height as usize],
-        &image.to_vec(),
+        &image,
     );
 
     Ok(texture)

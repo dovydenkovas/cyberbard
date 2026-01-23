@@ -33,7 +33,7 @@ impl ThreadStream {
         tracks: Vec<TrackStream>,
         volume: f32,
     ) -> Option<ThreadStream> {
-        if tracks.len() == 0 {
+        if tracks.is_empty() {
             None
         } else {
             let mut ts = ThreadStream {
@@ -46,7 +46,7 @@ impl ThreadStream {
             match ts.goto_next_avaliable() {
                 Ok(_) => Some(ts),
                 Err(e) => {
-                    eprintln!("No available tracks in thread stream. {}", e.to_string());
+                    eprintln!("No available tracks in thread stream. {}", e);
                     None
                 }
             }
@@ -54,7 +54,7 @@ impl ThreadStream {
     }
 
     pub fn replace_sources(&mut self, sources: Vec<TrackStream>) {
-        if sources.len() == 0 {
+        if sources.is_empty() {
             unreachable!("Empty sources replacement");
         }
 

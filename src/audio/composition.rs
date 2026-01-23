@@ -16,9 +16,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::audio::audio::{Audio, AudioError, RawAudio};
+use crate::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
-use crate::stream::stream::Stream;
+use crate::stream::Stream;
 
 /// Composition is container for other compositions and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
@@ -41,16 +41,12 @@ impl Composition {
         }
     }
 
-    fn contains_thread(&self, caption: &String) -> bool {
-        self.threads
-            .iter()
-            .find(|th| &th.0 == caption)
-            .take()
-            .is_some()
+    fn contains_thread(&self, caption: &str) -> bool {
+        self.threads.iter().any(|th| th.0 == caption)
     }
 
-    fn find_thread(&self, caption: &String) -> Option<usize> {
-        self.threads.iter().position(|th| &th.0 == caption)
+    fn find_thread(&self, caption: &str) -> Option<usize> {
+        self.threads.iter().position(|th| th.0 == caption)
     }
 }
 
@@ -87,12 +83,9 @@ impl RawAudio for Composition {
         for (_, pl) in self.threads.iter() {
             let mut substream = Stream::new(vec![], self.volume);
             for audio in pl {
-                match audio.borrow().get_stream() {
-                    Some(s) => {
-                        substream.merge(s);
-                        is_none = false;
-                    }
-                    _ => (),
+                if let Some(s) = audio.borrow().get_stream() {
+                    substream.merge(s);
+                    is_none = false;
                 }
             }
             stream.merge_parallel(substream);
@@ -100,22 +93,22 @@ impl RawAudio for Composition {
         if is_none { None } else { Some(stream) }
     }
 
-    fn push_thread(&mut self, caption: &String) -> Result<(), AudioError> {
+    fn push_thread(&mut self, caption: &str) -> Result<(), AudioError> {
         if !self.contains_thread(caption) {
-            self.threads.push((caption.clone(), Vec::new()));
+            self.threads.push((caption.to_string(), Vec::new()));
         }
         Ok(())
     }
 
-    fn remove_thread(&mut self, caption: &String) {
-        self.threads.retain(|th| &th.0 != caption);
+    fn remove_thread(&mut self, caption: &str) {
+        self.threads.retain(|th| th.0 != caption);
     }
 
-    fn rename_thread(&mut self, old_caption: &String, new_caption: &String) {
+    fn rename_thread(&mut self, old_caption: &str, new_caption: &str) {
         if !self.contains_thread(new_caption) {
             for thread in self.threads.iter_mut() {
-                if &thread.0 == old_caption {
-                    thread.0 = new_caption.clone();
+                if thread.0 == old_caption {
+                    thread.0 = new_caption.to_string();
                 }
             }
         }
@@ -125,7 +118,7 @@ impl RawAudio for Composition {
         Ok(self.threads.iter().map(|k| k.0.clone()).collect())
     }
 
-    fn push_audio(&mut self, thread: &String, audio: Audio) -> Result<(), AudioError> {
+    fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError> {
         match self.find_thread(thread) {
             Some(i) => {
                 self.threads[i].1.push(audio);
@@ -135,7 +128,7 @@ impl RawAudio for Composition {
         }
     }
 
-    fn remove_audio(&mut self, thread: &String, index: usize) -> Result<(), AudioError> {
+    fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError> {
         match self.find_thread(thread) {
             Some(i) => {
                 self.threads[i].1.remove(index);
@@ -145,7 +138,7 @@ impl RawAudio for Composition {
         }
     }
 
-    fn get_audio(&self, thread: &String, index: usize) -> Result<Audio, AudioError> {
+    fn get_audio(&self, thread: &str, index: usize) -> Result<Audio, AudioError> {
         if !self.contains_thread(thread) {
             return Err(AudioError::OutOfRange);
         }
@@ -162,7 +155,7 @@ impl RawAudio for Composition {
         }
     }
 
-    fn audio_count(&self, thread: &String) -> usize {
+    fn audio_count(&self, thread: &str) -> usize {
         match self.find_thread(thread) {
             Some(i) => self.threads[i].1.len(),
             None => 0,

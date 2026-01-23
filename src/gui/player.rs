@@ -19,7 +19,7 @@ use std::{cell::RefCell, rc::Rc, time::Duration};
 use egui::Ui;
 
 use crate::{
-    audio::audio::Audio,
+    audio::Audio,
     gui::events::{Event, Events},
     player::Player,
 };
@@ -32,13 +32,11 @@ pub struct PlayerWidget {
 
 impl PlayerWidget {
     pub fn new(player: Rc<RefCell<Player>>) -> PlayerWidget {
-        let widget = PlayerWidget {
+        PlayerWidget {
             title: "".to_string(),
             volume: 1.0,
             player,
-        };
-
-        widget
+        }
     }
 
     fn toggle_pause(&mut self) {

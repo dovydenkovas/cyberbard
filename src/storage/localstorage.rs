@@ -16,11 +16,11 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::storage::storage::StorageCredentials;
+use crate::storage::StorageCredentials;
 use crate::storage::tag::Tag;
-use crate::stream::stream::Stream;
+use crate::stream::Stream;
 
-use super::storage::Storage;
+use super::Storage;
 use crate::stream::Opener;
 use id3::TagLike;
 use rodio::Source;
@@ -44,7 +44,7 @@ pub struct LocalStorage {
 
 fn is_music_file(filename: &str) -> bool {
     let filename = filename.to_lowercase();
-    vec![".mp3", ".flac", ".wav", ".ogg"]
+    [".mp3", ".flac", ".wav", ".ogg"]
         .iter()
         .any(|x| filename.ends_with(x))
 }
@@ -68,51 +68,50 @@ impl Storage for LocalStorage {
     fn load_sources(&mut self) {
         self.sources.clear();
         self.sources_tags.clear();
-        for entry in WalkDir::new(self.storage_path.clone()) {
-            match entry {
-                Ok(dir_entry) => {
-                    let filename = dir_entry.path().to_string_lossy().to_string();
-                    if is_music_file(&filename) {
-                        let mut title: String = Path::new(&filename)
-                            .file_stem()
-                            .unwrap()
-                            .to_string_lossy()
-                            .chars()
-                            .take(50)
-                            .collect();
+        for dir_entry in WalkDir::new(self.storage_path.clone())
+            .into_iter()
+            .flatten()
+        {
+            let filename = dir_entry.path().to_string_lossy().to_string();
+            if is_music_file(&filename) {
+                let mut title: String = Path::new(&filename)
+                    .file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .chars()
+                    .take(50)
+                    .collect();
 
-                        if let Ok(tag) = id3::Tag::read_from_path(dir_entry.path()) {
-                            // TODO: Add artist
-                            // if let Some(artist) = tag.artist() {
-                            //     println!("artist: {}", artist);
-                            // }
-                            if let Some(t) = tag.title() {
-                                if !t.trim().is_empty() {
-                                    title = t.trim().to_string();
-                                }
-                            }
-                        }
-                        let tag = dir_entry
-                            .path()
-                            .parent()
-                            .unwrap()
-                            .components()
-                            .last()
-                            .unwrap()
-                            .as_os_str()
-                            .to_string_lossy()
-                            .to_string();
-                        self.sources.push(LocalSource::new(filename, title));
-                        self.attach_tag(self.sources.len() - 1, tag);
+                if let Ok(tag) = id3::Tag::read_from_path(dir_entry.path()) {
+                    // TODO: Add artist
+                    // if let Some(artist) = tag.artist() {
+                    //     println!("artist: {}", artist);
+                    // }
+                    if let Some(t) = tag.title()
+                        && !t.trim().is_empty()
+                    {
+                        title = t.trim().to_string();
                     }
                 }
-                Err(_) => (),
+                let tag = dir_entry
+                    .path()
+                    .parent()
+                    .unwrap()
+                    .components()
+                    .next_back()
+                    .unwrap()
+                    .as_os_str()
+                    .to_string_lossy()
+                    .to_string();
+                self.sources
+                    .push(Box::new(LocalSource::new(filename, title)));
+                self.attach_tag(self.sources.len() - 1, tag);
             }
         }
     }
 
     fn get(&self, index: usize) -> Option<BSource> {
-        self.sources.get(index).and_then(|v| Some(v.clone()))
+        self.sources.get(index).cloned()
     }
 
     fn len(&self) -> usize {
@@ -166,13 +165,7 @@ impl Storage for LocalStorage {
 
     fn rename_tag(&mut self, old_name: String, new_name: String) {
         // Not allowed set empty name or existing name.
-        if new_name.trim().len() == 0
-            || self
-                .tags
-                .iter()
-                .find(|t| t.get_text() == new_name)
-                .is_some()
-        {
+        if new_name.trim().is_empty() || self.tags.iter().any(|t| t.get_text() == new_name) {
             return;
         }
 
@@ -188,9 +181,9 @@ impl Storage for LocalStorage {
         if let Some(index) = self.tags.iter().position(|t| t.get_text() == name) {
             for tags in &mut self.sources_tags {
                 tags.retain(|&i| i != index);
-                for i in 0..tags.len() {
-                    if tags[i] > index {
-                        tags[i] -= 1;
+                for tag in tags {
+                    if *tag > index {
+                        *tag -= 1;
                     }
                 }
             }
@@ -256,15 +249,15 @@ pub struct LocalSource {
 }
 
 impl LocalSource {
-    pub fn new(filename: String, title: String) -> Box<dyn crate::storage::source::Source> {
-        Box::new(LocalSource { filename, title })
+    pub fn new(filename: String, title: String) -> LocalSource {
+        LocalSource { filename, title }
     }
 }
 
 #[typetag::serde]
 impl super::source::Source for LocalSource {
     fn get_stream(&self) -> Stream {
-        Stream::from_source(LocalOpener::new(self.filename.clone()), 100.0)
+        Stream::from_source(Box::new(LocalOpener::new(self.filename.clone())), 100.0)
     }
 
     fn get_title(&self) -> String {
@@ -282,11 +275,11 @@ pub struct LocalOpener {
 }
 
 impl LocalOpener {
-    pub fn new(filename: String) -> Box<dyn Opener + Send> {
-        Box::new(LocalOpener {
+    pub fn new(filename: String) -> LocalOpener {
+        LocalOpener {
             filename,
             duration: 0.0,
-        })
+        }
     }
 }
 
@@ -302,4 +295,3 @@ impl Opener for LocalOpener {
         self.duration
     }
 }
-
