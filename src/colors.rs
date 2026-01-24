@@ -21,7 +21,7 @@ use egui::{
 use rand::Rng;
 
 static mut IS_DARK: bool = false;
-static mut N_PREV_GENERATINS: u32 = 1;
+static mut N_PREV_GENERATINS: u32 = 0;
 static mut PREV_COLOR: f32 = 0.0;
 
 pub fn set_light() {
@@ -118,5 +118,36 @@ pub fn rand_color() -> String {
         rand_dark_background()
     } else {
         rand_light_background()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn next_values() {
+        unsafe { PREV_COLOR = 1.0; }
+        // 1/2
+        assert_eq!(next(), 0.5);
+
+        // 1/4
+        assert_eq!(next(), 0.75);
+        assert_eq!(next(), 0.25);
+
+        // 1/8
+        assert_eq!(next(), 0.375);
+        assert_eq!(next(), 0.625);
+        assert_eq!(next(), 0.875);
+        assert_eq!(next(), 0.125);
+
+        // 1/16
+        assert_eq!(next(), 0.1875);
+        assert_eq!(next(), 0.3125);
+        assert_eq!(next(), 0.4375);
+        assert_eq!(next(), 0.5625);
+        assert_eq!(next(), 0.6875);
+        assert_eq!(next(), 0.8125);
+        assert_eq!(next(), 0.9375);
     }
 }
