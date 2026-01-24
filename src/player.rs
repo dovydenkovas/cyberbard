@@ -15,6 +15,7 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -25,29 +26,26 @@ enum Command {
     Pause,
     Stop,
     Reset,
-    GetPosition,
     SetStream(Stream),
     SyncStream(Stream),
     SetVolume(f32),
     SetTrackVolume(f32, usize, usize),
 }
 
-enum Response {
-    Position(f32),
-}
-
 /// Music Player.
 /// Get audio Stream and control play process.
 pub struct Player {
     cmd_tx: Sender<Command>,
-    resp_rx: Receiver<Response>,
     paused: bool,
+    progress: Arc<Mutex<f32>>
 }
 
 impl Player {
     pub fn new() -> Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
-        let (resp_tx, resp_rx): (Sender<Response>, Receiver<Response>) = mpsc::channel();
+        let progress = Arc::new(Mutex::new(0.0));
+
+        let total_progress = Arc::clone(&progress);
 
         let _ = thread::spawn(move || {
             let mut opt_stream: Option<Stream> = None;
@@ -56,9 +54,6 @@ impl Player {
                     None => match cmd_rx.try_recv() {
                         Ok(Command::SetStream(s)) => opt_stream = Some(s),
 
-                        Ok(Command::GetPosition) => {
-                            resp_tx.send(Response::Position(0.0)).unwrap();
-                        }
                         Ok(_) => (),
                         Err(mpsc::TryRecvError::Empty) => {
                             thread::sleep(Duration::from_millis(50));
@@ -87,11 +82,6 @@ impl Player {
 
                             Ok(Command::SetStream(s)) => opt_stream = Some(s),
                             Ok(Command::SyncStream(s)) => stream.sync(s),
-                            Ok(Command::GetPosition) => {
-                                resp_tx
-                                    .send(Response::Position(stream.get_position()))
-                                    .unwrap();
-                            }
                             Ok(Command::SetVolume(vol)) => {
                                 stream.set_total_volume(vol);
                             }
@@ -100,7 +90,8 @@ impl Player {
                             }
 
                             Err(mpsc::TryRecvError::Empty) => {
-                                thread::sleep(Duration::from_millis(50));
+                                *total_progress.lock().unwrap() = stream.get_position();
+                                thread::sleep(Duration::from_millis(30));
                             }
                             Err(mpsc::TryRecvError::Disconnected) => {
                                 stream.stop();
@@ -114,8 +105,8 @@ impl Player {
 
         Player {
             cmd_tx,
-            resp_rx,
             paused: true,
+            progress
         }
     }
 
@@ -152,11 +143,7 @@ impl Player {
     }
 
     pub fn get_position(&self) -> f32 {
-        let _ = self.cmd_tx.send(Command::GetPosition);
-        match self.resp_rx.recv() {
-            Err(_) => 0.0,
-            Ok(Response::Position(pos)) => pos,
-        }
+        self.progress.lock().unwrap().clone()
     }
 
     pub fn set_volume(&mut self, vol: f32) {

@@ -100,7 +100,7 @@ impl PlayerWidget {
         ui.add_space(10.0);
 
         if !self.player.borrow().is_paused() {
-            ctx.request_repaint_after(Duration::from_millis(50));
+            ctx.request_repaint_after(Duration::from_millis(30));
         }
     }
 }

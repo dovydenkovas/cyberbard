@@ -43,6 +43,7 @@ pub struct ApplicationImp {
     player_widget: PlayerWidget,
     composition_widget: CompositionWidget,
     settings: Rc<RefCell<Settings>>,
+    last_upd: std::time::Instant,
 }
 
 impl ApplicationImp {
@@ -60,6 +61,7 @@ impl ApplicationImp {
             player_widget: PlayerWidget::new(player),
             composition_widget: CompositionWidget::new(composition),
             settings,
+            last_upd: std::time::Instant::now()
         }
     }
 
@@ -166,6 +168,16 @@ impl eframe::App for ApplicationImp {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.map_widget.update(ctx, ui, &mut self.events);
         });
+
+        // FPS controller
+        let now = std::time::Instant::now();
+        let fps = 60;
+        let goal_delay = std::time::Duration::from_secs(1)/fps;
+        let delta = now - self.last_upd;
+        if  delta < goal_delay {
+            std::thread::sleep(goal_delay - delta);
+        }
+        self.last_upd = now;
     }
 }
 
