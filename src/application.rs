@@ -56,6 +56,10 @@ impl Application {
         Rc::clone(&self.storage)
     }
 
+    pub fn reverse_colors(&mut self) {
+        self.storage.borrow_mut().reverse_colors();
+    }
+
     pub fn setup_storage(
         &mut self,
         credentials: StorageCredentials,
@@ -75,6 +79,10 @@ impl Application {
 
     pub fn get_selected_composition(&self) -> AudioCell {
         Rc::clone(&self.selected_compostion)
+    }
+
+    pub fn has_selected_composition(&self) -> bool {
+        self.selected_compostion.borrow().is_some()
     }
 
     pub fn get_current_playing(&self) -> AudioCell {
@@ -104,7 +112,9 @@ impl Application {
     }
 
     pub fn player_set_track_volume(&mut self, volume: f32, composition_index: usize, index: usize) {
-        if Rc::ptr_eq(
+        if self.current_playing.borrow().is_some()
+        && self.selected_compostion.borrow().is_some()
+            && Rc::ptr_eq(
             self.selected_compostion.borrow().as_ref().unwrap(),
             self.current_playing.borrow().as_ref().unwrap(),
         ) {

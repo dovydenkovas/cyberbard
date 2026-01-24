@@ -16,40 +16,50 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use egui::{Label, Sense, Slider, TextEdit, Ui};
+use egui::{Color32, Label, Sense, Slider, TextEdit, Ui};
 
 use crate::{
+    application::Application,
     audio::Audio,
     gui::{
         events::{Event, Events},
-        widgets::EditableHeader,
     },
 };
 
 pub struct CompositionWidget {
-    title: EditableHeader,
-    composition: Rc<RefCell<Option<Audio>>>,
+    // composition: Rc<RefCell<Option<Audio>>>,
     current_thread: Option<String>,
+    application: Rc<RefCell<Application>>,
 }
 
 impl CompositionWidget {
-    pub fn new(composition: Rc<RefCell<Option<Audio>>>) -> CompositionWidget {
+    pub fn new(application: Rc<RefCell<Application>>) -> CompositionWidget {
         CompositionWidget {
-            title: EditableHeader::new("".to_string()),
-            composition,
             current_thread: None,
+            application,
         }
     }
 
     pub fn sync_with_application(&mut self) {
-        if let Some(comp) = self.composition.borrow().as_ref() {
-            self.title.set_text(comp.borrow().get_title());
+        if let Some(_) = self
+            .application
+            .borrow()
+            .get_selected_composition()
+            .borrow_mut()
+            .as_ref()
+        {
             self.current_thread = None;
         }
     }
 
     pub fn insert_audio(&mut self, audio: Audio) {
-        if let Some(composition) = self.composition.borrow_mut().as_ref() {
+        if let Some(composition) = self
+            .application
+            .borrow()
+            .get_selected_composition()
+            .borrow_mut()
+            .as_ref()
+        {
             let thread = if let Some(thread) = &self.current_thread {
                 thread.clone()
             } else if let Some(thread) = composition.borrow().threads().unwrap().first() {
@@ -65,18 +75,21 @@ impl CompositionWidget {
     }
 
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
-        if self.composition.borrow().is_none() {
-            return;
-        }
-
-        egui::ScrollArea::vertical()
-            .vscroll(true)
-            .auto_shrink(false)
-            .show(ui, |ui| {
-                if let Some(composition) = self.composition.borrow().as_ref() {
+        let comp = self.application.borrow().get_selected_composition();
+        if let Some(composition) = comp.borrow_mut().as_ref() {
+            egui::ScrollArea::vertical()
+                .vscroll(true)
+                .auto_shrink(false)
+                .show(ui, |ui| {
+                    let mut title = composition.borrow().get_title();
                     ui.vertical_centered(|ui| {
-                        if let Some(new_title) = self.title.update(ui) {
-                            composition.borrow_mut().set_title(new_title);
+                        if ui.add(
+                            TextEdit::singleline(&mut title)
+                                .horizontal_align(egui::Align::Center)
+                                .text_color(ui.visuals().strong_text_color())
+                                .background_color(ui.visuals().panel_fill),
+                        ).changed() {
+                            composition.borrow_mut().set_title(title);
                             sync_with_player(events, composition);
                         }
                     });
@@ -96,46 +109,35 @@ impl CompositionWidget {
                             }
                         });
                     });
-                }
-                ui.add_space(25.0);
-                let threads = if let Some(v) = self.composition.borrow().as_ref() {
-                    v.borrow().threads().unwrap()
-                } else {
-                    Vec::new()
-                };
+                    ui.add_space(25.0);
+                    let threads = composition.borrow().threads().unwrap();
 
-                for mut thread in threads {
-                    let mut remove_elements = vec![];
-                    self.render_thread(ui, events, &mut remove_elements, &mut thread);
-
-                    for element in remove_elements {
-                        self.remove_composition(&thread, element);
-                        sync_with_player(events, self.composition.borrow_mut().as_mut().unwrap());
-                    }
-                }
-
-                ui.vertical_centered(|ui| {
-                    if ui.button("+").clicked() {
-                        let thread = &generate_thread_name(
-                            self.composition
-                                .borrow()
-                                .as_ref()
-                                .unwrap()
-                                .borrow()
-                                .threads()
-                                .unwrap(),
+                    for mut thread in threads {
+                        let mut remove_elements = vec![];
+                        self.render_thread(
+                            ui,
+                            events,
+                            &mut remove_elements,
+                            &mut thread,
+                            &composition,
                         );
 
-                        self.composition
-                            .borrow()
-                            .as_ref()
-                            .unwrap()
-                            .borrow_mut()
-                            .push_thread(thread)
-                            .unwrap();
+                        for element in remove_elements {
+                            let _ = composition.borrow_mut().remove_audio(&thread, element);
+                            sync_with_player(events, composition);
+                        }
                     }
+
+                    ui.vertical_centered(|ui| {
+                        if ui.button("+").clicked() {
+                            let thread =
+                                &generate_thread_name(composition.borrow().threads().unwrap());
+
+                            composition.borrow_mut().push_thread(thread).unwrap();
+                        }
+                    });
                 });
-            });
+        }
     }
 
     fn render_thread(
@@ -144,115 +146,85 @@ impl CompositionWidget {
         events: &mut Events,
         remove_elements: &mut Vec<usize>,
         thread: &mut String,
+        composition: &Audio,
     ) {
-        if self.composition.borrow().as_ref().is_none() {
-            return;
-        }
+        let mut title = thread.clone();
+        let color =
+            if self.current_thread.is_some() && &title == self.current_thread.as_ref().unwrap() {
+                ui.visuals().disable(ui.visuals().selection.bg_fill)
+            } else {
+                ui.visuals().disable(ui.visuals().widgets.inactive.weak_bg_fill)
+            };
 
-        ui.horizontal(|ui| {
-            let mut title = thread.clone();
-            let title_edit = ui.add(
-                if self.current_thread.is_some() && &title == self.current_thread.as_ref().unwrap()
-                {
-                    TextEdit::singleline(&mut title).text_color(ui.visuals().strong_text_color())
-                } else {
+        let frame = egui::Frame::new()
+            .fill(color)
+            .corner_radius(10)
+            .inner_margin(egui::Margin::same(5));
+        frame.show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let title_edit = ui.add(
                     TextEdit::singleline(&mut title)
-                },
-            );
-            if title_edit.changed() {
-                self.composition
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .borrow_mut()
-                    .rename_thread(thread, &title);
-                *thread = title;
-            }
+                        .horizontal_align(egui::Align::Center)
+                        .text_color(ui.visuals().strong_text_color())
+                        .background_color(Color32::TRANSPARENT),
+                );
+                if title_edit.changed() {
+                    composition.borrow_mut().rename_thread(thread, &title);
+                    *thread = title;
+                }
 
-            if title_edit.has_focus() {
-                self.current_thread = Some(thread.clone());
-            }
+                if title_edit.has_focus() {
+                    self.current_thread = Some(thread.clone());
+                }
 
-            if ui.label("🗙").clicked() {
-                self.composition
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .borrow_mut()
-                    .remove_thread(thread);
+                if ui.label("🗙").clicked() {
+                    composition.borrow_mut().remove_thread(thread);
+                }
+            });
+
+            ui.add_space(5.0);
+            let n = composition.borrow().audio_count(thread);
+
+            for i in 0..n {
+                // TODO: set labels clickable to select a track in the thread.
+                let audio: Audio = composition.borrow().get_audio(thread, i).unwrap();
+
+                ui.horizontal(|ui| {
+                    ui.label(audio.borrow().get_title());
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.add_space(15.0);
+                        if ui
+                            .add(Label::new("🗙").sense(Sense::click()).selectable(false))
+                            .clicked()
+                        {
+                            remove_elements.push(i);
+                        }
+
+                        let mut volume = audio.borrow().get_volume();
+                        if ui
+                            .add(Slider::new(&mut volume, 0.0..=1.0).show_value(false))
+                            .changed()
+                        {
+                            audio.borrow_mut().set_volume(volume);
+                            events.push_back(Event::PlayerSetTrackVolume {
+                                volume,
+                                composition_index: composition
+                                    .borrow()
+                                    .threads()
+                                    .unwrap()
+                                    .iter()
+                                    .position(|s| s == thread)
+                                    .unwrap(),
+                                index: i,
+                            });
+                        }
+                    });
+                });
+                ui.add_space(5.0);
             }
         });
-
         ui.add_space(5.0);
-        let n = self
-            .composition
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .borrow()
-            .audio_count(thread);
-
-        for i in 0..n {
-            // TODO: set labels clickable to select a track in the thread.
-            let audio: Audio = self
-                .composition
-                .borrow()
-                .as_ref()
-                .unwrap()
-                .borrow()
-                .get_audio(thread, i)
-                .unwrap();
-
-            ui.horizontal(|ui| {
-                ui.label(audio.borrow().get_title());
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.add_space(15.0);
-                    if ui
-                        .add(Label::new("🗙").sense(Sense::click()).selectable(false))
-                        .clicked()
-                    {
-                        remove_elements.push(i);
-                    }
-
-                    let mut volume = audio.borrow().get_volume();
-                    if ui
-                        .add(Slider::new(&mut volume, 0.0..=1.0).show_value(false))
-                        .changed()
-                    {
-                        audio.borrow_mut().set_volume(volume);
-                        events.push_back(Event::PlayerSetTrackVolume {
-                            volume,
-                            composition_index: self
-                                .composition
-                                .borrow()
-                                .as_ref()
-                                .unwrap()
-                                .borrow()
-                                .threads()
-                                .unwrap()
-                                .iter()
-                                .position(|s| s == thread)
-                                .unwrap(),
-                            index: i,
-                        });
-                    }
-                });
-            });
-            ui.add_space(5.0);
-        }
-        ui.separator();
-        ui.add_space(20.0);
-    }
-
-    fn remove_composition(&mut self, thread: &str, index: usize) {
-        let _ = self
-            .composition
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .borrow_mut()
-            .remove_audio(thread, index);
     }
 }
 

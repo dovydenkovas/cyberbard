@@ -17,6 +17,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use crate::{
+    application::Application,
     audio::Audio,
     gui::events::{Event, Events},
     map::{Map, Point},
@@ -29,15 +30,17 @@ pub struct MapWidget {
     is_root: bool,
     hide_map: bool,
     show_open_map_dialog: bool,
+    application: Rc<RefCell<Application>>,
 }
 
 impl MapWidget {
-    pub fn new(map: Rc<RefCell<Map>>) -> MapWidget {
+    pub fn new(map: Rc<RefCell<Map>>, application: Rc<RefCell<Application>>) -> MapWidget {
         MapWidget {
             map,
             is_root: true,
             hide_map: false,
             show_open_map_dialog: false,
+            application,
         }
     }
 
@@ -71,7 +74,12 @@ impl MapWidget {
     }
 
     fn add_composition(&mut self) {
+        let i = self.map.borrow().audio_count();
         self.map.borrow_mut().push_new_audio();
+        let comp = self.map.borrow().get_audio(i);
+        self.application
+            .borrow_mut()
+            .set_selected_composition(Some(comp));
     }
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
@@ -85,7 +93,7 @@ impl MapWidget {
                     self.render_compositions(ctx, ui, events);
                 });
             ui.add_space(10.0);
-            self.render_map_widget(ctx, ui);
+            self.render_map_widget(ctx, ui, events);
         }
     }
 
@@ -109,11 +117,33 @@ impl MapWidget {
             });
         });
 
+        let comp = self.application.borrow().get_selected_composition();
+
         ui.vertical_centered_justified(|ui| {
             ui.add_space(20.0);
             let mut remove_after_render = None;
             for i in 0..self.map.borrow().audio_count() {
-                self.render_composition(ui, &self.map, i, events, &mut remove_after_render);
+                if let Some(c) = comp.borrow().as_ref()
+                    && Rc::ptr_eq(&self.map.borrow().get_audio(i), &c)
+                {
+                    self.render_composition(
+                        ui,
+                        &self.map,
+                        i,
+                        events,
+                        &mut remove_after_render,
+                        true,
+                    );
+                } else {
+                    self.render_composition(
+                        ui,
+                        &self.map,
+                        i,
+                        events,
+                        &mut remove_after_render,
+                        false,
+                    );
+                }
             }
 
             if let Some(index) = remove_after_render {
@@ -139,11 +169,21 @@ impl MapWidget {
         index: usize,
         events: &mut Events,
         remove_after_render: &mut Option<usize>,
+        is_selected: bool,
     ) {
         let audio = map.borrow().get_audio(index);
         let title = audio.borrow().get_title();
 
-        let btn = egui::Button::new(&title).min_size(Vec2::new(80.0, 50.0));
+        let bg_color = if is_selected {
+            ui.visuals().disable(ui.visuals().selection.bg_fill)
+        } else {
+            ui.visuals()
+                .disable(ui.visuals().widgets.inactive.weak_bg_fill)
+        };
+
+        let btn = egui::Button::new(&title)
+            .min_size(Vec2::new(80.0, 50.0))
+            .fill(bg_color);
 
         let response = ui.add(btn);
         if response.clicked() {
@@ -155,33 +195,45 @@ impl MapWidget {
         ui.add_space(5.0);
     }
 
-    fn render_map_widget(&mut self, ctx: &egui::Context, ui: &mut Ui) {
+    fn render_map_widget(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         if self.show_open_map_dialog {
             self.render_open_map_dialog(ctx, ui);
-        } else if self.map.borrow().get_background().is_none() {
-            let path = self.map.borrow().get_background_path();
-            if let Some(path) = path {
-                self.try_load_background(ctx, path);
-            }
-
-            ui.centered_and_justified(|ui| {
-                let btn = Label::new("Добавить карту".to_string()).sense(Sense::click());
-                if ui.add(btn).clicked() {
-                    self.show_open_map_dialog = true;
-                }
-            });
         } else {
             let mut map_removed = false;
             ui.horizontal(|ui| {
-                if ui.button("🗙").clicked() {
+                ui.add_space(5.0);
+                if self.map.borrow().get_background().is_some()
+                    && ui.button("🗙").clicked() {
                     self.map.borrow_mut().remove_background();
                     map_removed = true;
                 }
-            });
-            if !map_removed {
-                ui.centered_and_justified(|ui| {
-                    self.render_map(ctx, ui);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(5.0);
+                    if ui.button("🌙".to_string()).clicked() {
+                        events.push_back(Event::ToggleTheme);
+                        self.application.borrow_mut().reverse_colors();
+                    };
                 });
+            });
+
+            if self.map.borrow().get_background().is_none() {
+                let path = self.map.borrow().get_background_path();
+                if let Some(path) = path {
+                    self.try_load_background(ctx, path);
+                }
+
+                ui.centered_and_justified(|ui| {
+                    let btn = Label::new("Добавить карту".to_string()).sense(Sense::click());
+                    if ui.add(btn).clicked() {
+                        self.show_open_map_dialog = true;
+                    }
+                });
+            } else {
+                if !map_removed {
+                    ui.centered_and_justified(|ui| {
+                        self.render_map(ctx, ui);
+                    });
+                }
             }
         }
     }
@@ -294,10 +346,8 @@ fn load_image_from_path(path: &str) -> Result<egui::ColorImage, String> {
         .to_rgba8();
     let (width, height) = image.dimensions();
 
-    let texture = egui::ColorImage::from_rgba_premultiplied(
-        [width as usize, height as usize],
-        &image,
-    );
+    let texture =
+        egui::ColorImage::from_rgba_premultiplied([width as usize, height as usize], &image);
 
     Ok(texture)
 }

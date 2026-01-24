@@ -20,6 +20,7 @@ use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
+    application::Application,
     audio::{Audio, track::Track},
     gui::{
         events::{Event, Events},
@@ -34,16 +35,21 @@ pub struct StorageWidget {
     shown_music: Vec<usize>,
     storage: Rc<RefCell<Box<dyn Storage>>>,
     edit_track_index: Option<usize>,
+    application: Rc<RefCell<Application>>,
 }
 
 impl StorageWidget {
-    pub fn new(storage: Rc<RefCell<Box<dyn Storage>>>) -> StorageWidget {
+    pub fn new(
+        storage: Rc<RefCell<Box<dyn Storage>>>,
+        application: Rc<RefCell<Application>>,
+    ) -> StorageWidget {
         let mut widget = StorageWidget {
             caption: widgets::EditableHeader::new("".to_string()),
             search_pattern: "".to_string(),
             storage,
             shown_music: vec![],
             edit_track_index: None,
+            application,
         };
         widget.sync_with_storage();
         widget
@@ -73,9 +79,7 @@ impl StorageWidget {
             .save_file();
 
         if let Some(path) = path {
-            events.push_back(Event::SaveProject {
-                path
-            });
+            events.push_back(Event::SaveProject { path });
         }
     }
 
@@ -109,10 +113,6 @@ impl StorageWidget {
             };
             if ui.button("💾".to_string()).clicked() {
                 self.save_project(events)
-            };
-            if ui.button("🌙".to_string()).clicked() {
-                events.push_back(Event::ToggleTheme);
-                self.storage.borrow_mut().reverse_colors();
             };
             ui.vertical_centered(|ui| {
                 if let Some(new_caption) = self.caption.update(ui) {
@@ -165,7 +165,9 @@ impl StorageWidget {
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(20.0);
-                if ui.button("+".to_string()).clicked() {
+                if self.application.borrow().has_selected_composition()
+                    && ui.button("+".to_string()).clicked()
+                {
                     self.send_source_to_map(index, events);
                 }
 
