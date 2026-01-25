@@ -22,7 +22,7 @@ use crate::{
     gui::events::{Event, Events},
     map::{Map, Point},
 };
-use egui::{Label, Sense, Ui, Vec2, load::SizedTexture, vec2};
+use egui::{Label, Sense, Ui, UiBuilder, Vec2, load::SizedTexture, vec2};
 use rfd::FileDialog;
 
 pub struct MapWidget {
@@ -97,69 +97,91 @@ impl MapWidget {
         }
     }
 
-    fn render_compositions(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let hide_label = "↔";
-                if ui.button(hide_label.to_string()).clicked() {
-                    self.hide_map = !self.hide_map;
-                };
-                if !self.is_root && ui.button("⬆").clicked() {
-                    self.goto_parent_map();
-                }
-                ui.vertical(|ui| {
-                    // TODO: not real centered for now
-                    ui.centered_and_justified(|ui| {
-                        ui.heading("Плейлисты");
+    fn render_compositions(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
+        let builder = UiBuilder::new().sense(Sense::click());
+        if ui
+            .scope_builder(builder, |ui| {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let hide_label = "↔";
+                        if ui.button(hide_label.to_string()).clicked() {
+                            self.hide_map = !self.hide_map;
+                        };
+                        if !self.is_root && ui.button("⬆").clicked() {
+                            self.goto_parent_map();
+                        }
+                        if self.hide_map {
+                            self.reneder_tools_panel(ctx, ui, events);
+                        }
+                        ui.vertical(|ui| {
+                            // TODO: not real centered for now
+                            ui.centered_and_justified(|ui| {
+                                ui.style_mut().interaction.selectable_labels = false;
+                                ui.heading("Плейлисты");
+                            });
+                        });
                     });
                 });
-            });
-        });
 
-        let comp = self.application.borrow().get_selected_composition();
+                egui::ScrollArea::vertical()
+                    .vscroll(true)
+                    .auto_shrink(false)
+                    .show(ui, |ui| {
+                        let comp = self.application.borrow().get_selected_composition();
 
-        ui.vertical_centered_justified(|ui| {
-            ui.add_space(20.0);
-            let mut remove_after_render = None;
-            for i in 0..self.map.borrow().audio_count() {
-                if let Some(c) = comp.borrow().as_ref()
-                    && Rc::ptr_eq(&self.map.borrow().get_audio(i), &c)
-                {
-                    self.render_composition(
-                        ui,
-                        &self.map,
-                        i,
-                        events,
-                        &mut remove_after_render,
-                        true,
-                    );
-                } else {
-                    self.render_composition(
-                        ui,
-                        &self.map,
-                        i,
-                        events,
-                        &mut remove_after_render,
-                        false,
-                    );
-                }
-            }
+                        ui.vertical_centered_justified(|ui| {
+                            ui.add_space(20.0);
+                            let mut remove_after_render = None;
+                            for i in 0..self.map.borrow().audio_count() {
+                                if let Some(c) = comp.borrow().as_ref()
+                                    && Rc::ptr_eq(&self.map.borrow().get_audio(i), &c)
+                                {
+                                    self.render_composition(
+                                        ui,
+                                        &self.map,
+                                        i,
+                                        events,
+                                        &mut remove_after_render,
+                                        true,
+                                    );
+                                } else {
+                                    self.render_composition(
+                                        ui,
+                                        &self.map,
+                                        i,
+                                        events,
+                                        &mut remove_after_render,
+                                        false,
+                                    );
+                                }
+                            }
 
-            if let Some(index) = remove_after_render {
-                self.map.borrow_mut().erase_audio(index);
-            }
-        });
+                            if let Some(index) = remove_after_render {
+                                self.map.borrow_mut().erase_audio(index);
+                            }
+                        });
 
-        ui.vertical_centered(|ui| {
-            ui.add_space(10.0);
-            let btn = egui::Button::new("+")
-                .min_size(Vec2::new(40.0, 40.0))
-                .corner_radius(90.0);
-            if ui.add(btn).clicked() {
-                self.add_composition();
-            }
-        });
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(10.0);
+                            let btn = egui::Button::new("+")
+                                .min_size(Vec2::new(40.0, 40.0))
+                                .corner_radius(90.0);
+                            if ui.add(btn).clicked() {
+                                self.add_composition();
+                            }
+                        });
+                    });
+            })
+            .response
+            .clicked()
+        {
+            self.reset_selection();
+        }
+    }
+
+    fn reset_selection(&mut self) {
+        self.application.borrow_mut().set_selected_composition(None);
     }
 
     fn render_composition(
@@ -195,6 +217,15 @@ impl MapWidget {
         ui.add_space(5.0);
     }
 
+    fn reneder_tools_panel(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button("🌙".to_string()).clicked() {
+                events.push_back(Event::ToggleTheme);
+                self.application.borrow_mut().reverse_colors();
+            };
+        });
+    }
+
     fn render_map_widget(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         if self.show_open_map_dialog {
             self.render_open_map_dialog(ctx, ui);
@@ -202,18 +233,11 @@ impl MapWidget {
             let mut map_removed = false;
             ui.horizontal(|ui| {
                 ui.add_space(5.0);
-                if self.map.borrow().get_background().is_some()
-                    && ui.button("🗙").clicked() {
+                if self.map.borrow().get_background().is_some() && ui.button("🗙").clicked() {
                     self.map.borrow_mut().remove_background();
                     map_removed = true;
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.add_space(5.0);
-                    if ui.button("🌙".to_string()).clicked() {
-                        events.push_back(Event::ToggleTheme);
-                        self.application.borrow_mut().reverse_colors();
-                    };
-                });
+                self.reneder_tools_panel(ctx, ui, events);
             });
 
             if self.map.borrow().get_background().is_none() {

@@ -16,14 +16,12 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use egui::{Color32, Label, Sense, Slider, TextEdit, Ui};
+use egui::{Color32, Label, Sense, Slider, TextEdit, Ui, UiBuilder};
 
 use crate::{
     application::Application,
     audio::Audio,
-    gui::{
-        events::{Event, Events},
-    },
+    gui::events::{Event, Events},
 };
 
 pub struct CompositionWidget {
@@ -77,66 +75,82 @@ impl CompositionWidget {
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         let comp = self.application.borrow().get_selected_composition();
         if let Some(composition) = comp.borrow_mut().as_ref() {
-            egui::ScrollArea::vertical()
-                .vscroll(true)
-                .auto_shrink(false)
-                .show(ui, |ui| {
-                    let mut title = composition.borrow().get_title();
-                    ui.vertical_centered(|ui| {
-                        if ui.add(
-                            TextEdit::singleline(&mut title)
-                                .horizontal_align(egui::Align::Center)
-                                .text_color(ui.visuals().strong_text_color())
-                                .background_color(ui.visuals().panel_fill),
-                        ).changed() {
-                            composition.borrow_mut().set_title(title);
-                            sync_with_player(events, composition);
-                        }
-                    });
-
-                    ui.add_space(20.0);
-
-                    ui.horizontal(|ui| {
-                        ui.label("Громкость");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let mut total_volume = composition.borrow().get_volume();
+            let builder = UiBuilder::new().sense(Sense::click());
+            if ui
+            .scope_builder(builder, |ui| {
+                egui::ScrollArea::vertical()
+                    .vscroll(true)
+                    .auto_shrink(false)
+                    .show(ui, |ui| {
+                        let mut title = composition.borrow().get_title();
+                        ui.vertical_centered(|ui| {
                             if ui
-                                .add(Slider::new(&mut total_volume, 0.0..=1.0).show_value(false))
+                                .add(
+                                    TextEdit::singleline(&mut title)
+                                        .horizontal_align(egui::Align::Center)
+                                        .text_color(ui.visuals().strong_text_color())
+                                        .background_color(ui.visuals().panel_fill),
+                                )
                                 .changed()
                             {
-                                composition.borrow_mut().set_volume(total_volume);
+                                composition.borrow_mut().set_title(title);
                                 sync_with_player(events, composition);
                             }
                         });
-                    });
-                    ui.add_space(25.0);
-                    let threads = composition.borrow().threads().unwrap();
 
-                    for mut thread in threads {
-                        let mut remove_elements = vec![];
-                        self.render_thread(
-                            ui,
-                            events,
-                            &mut remove_elements,
-                            &mut thread,
-                            &composition,
-                        );
+                        ui.add_space(20.0);
 
-                        for element in remove_elements {
-                            let _ = composition.borrow_mut().remove_audio(&thread, element);
-                            sync_with_player(events, composition);
+                        ui.horizontal(|ui| {
+                            ui.label("Громкость");
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    let mut total_volume = composition.borrow().get_volume();
+                                    if ui
+                                        .add(
+                                            Slider::new(&mut total_volume, 0.0..=1.0)
+                                                .show_value(false),
+                                        )
+                                        .changed()
+                                    {
+                                        composition.borrow_mut().set_volume(total_volume);
+                                        sync_with_player(events, composition);
+                                    }
+                                },
+                            );
+                        });
+                        ui.add_space(25.0);
+                        let threads = composition.borrow().threads().unwrap();
+
+                        for mut thread in threads {
+                            let mut remove_elements = vec![];
+                            self.render_thread(
+                                ui,
+                                events,
+                                &mut remove_elements,
+                                &mut thread,
+                                &composition,
+                            );
+
+                            for element in remove_elements {
+                                let _ = composition.borrow_mut().remove_audio(&thread, element);
+                                sync_with_player(events, composition);
+                            }
                         }
-                    }
 
-                    ui.vertical_centered(|ui| {
-                        if ui.button("+").clicked() {
-                            let thread =
-                                &generate_thread_name(composition.borrow().threads().unwrap());
+                        ui.vertical_centered(|ui| {
+                            if ui.button("+").clicked() {
+                                let thread =
+                                    generate_thread_name(composition.borrow().threads().unwrap());
 
-                            composition.borrow_mut().push_thread(thread).unwrap();
-                        }
+                                composition.borrow_mut().push_thread(&thread).unwrap();
+                                self.current_thread = Some(thread);
+                            }
+                        });
                     });
-                });
+            }).response.clicked() {
+                self.current_thread = None;
+            }
         }
     }
 
@@ -153,7 +167,8 @@ impl CompositionWidget {
             if self.current_thread.is_some() && &title == self.current_thread.as_ref().unwrap() {
                 ui.visuals().disable(ui.visuals().selection.bg_fill)
             } else {
-                ui.visuals().disable(ui.visuals().widgets.inactive.weak_bg_fill)
+                ui.visuals()
+                    .disable(ui.visuals().widgets.inactive.weak_bg_fill)
             };
 
         let frame = egui::Frame::new()
