@@ -16,7 +16,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use egui::{Color32, Label, Sense, Slider, TextEdit, Ui, UiBuilder};
+use egui::{Color32, Label, RichText, Sense, Slider, TextEdit, Ui, UiBuilder};
 
 use crate::{
     application::Application,
@@ -39,12 +39,12 @@ impl CompositionWidget {
     }
 
     pub fn sync_with_application(&mut self) {
-        if let Some(_) = self
+        if self
             .application
             .borrow()
             .get_selected_composition()
             .borrow_mut()
-            .as_ref()
+            .as_ref().is_some()
         {
             self.current_thread = None;
         }
@@ -77,78 +77,104 @@ impl CompositionWidget {
         if let Some(composition) = comp.borrow_mut().as_ref() {
             let builder = UiBuilder::new().sense(Sense::click());
             if ui
-            .scope_builder(builder, |ui| {
-                egui::ScrollArea::vertical()
-                    .vscroll(true)
-                    .auto_shrink(false)
-                    .show(ui, |ui| {
-                        let mut title = composition.borrow().get_title();
-                        ui.vertical_centered(|ui| {
-                            if ui
-                                .add(
-                                    TextEdit::singleline(&mut title)
-                                        .horizontal_align(egui::Align::Center)
-                                        .text_color(ui.visuals().strong_text_color())
-                                        .background_color(ui.visuals().panel_fill),
-                                )
-                                .changed()
-                            {
-                                composition.borrow_mut().set_title(title);
-                                sync_with_player(events, composition);
-                            }
-                        });
+                .scope_builder(builder, |ui| {
+                    egui::ScrollArea::vertical()
+                        .vscroll(true)
+                        .auto_shrink(false)
+                        .show(ui, |ui| {
+                            let mut title = composition.borrow().get_title();
+                            ui.vertical_centered(|ui| {
+                                if ui
+                                    .add(
+                                        TextEdit::singleline(&mut title)
+                                            .horizontal_align(egui::Align::Center)
+                                            .text_color(ui.visuals().strong_text_color())
+                                            .background_color(ui.visuals().panel_fill),
+                                    )
+                                    .changed()
+                                {
+                                    composition.borrow_mut().set_title(title);
+                                    sync_with_player(events, composition);
+                                }
+                            });
 
-                        ui.add_space(20.0);
+                            ui.add_space(20.0);
 
-                        ui.horizontal(|ui| {
-                            ui.label("Громкость");
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    let mut total_volume = composition.borrow().get_volume();
-                                    if ui
-                                        .add(
-                                            Slider::new(&mut total_volume, 0.0..=1.0)
-                                                .show_value(false),
-                                        )
-                                        .changed()
-                                    {
-                                        composition.borrow_mut().set_volume(total_volume);
-                                        sync_with_player(events, composition);
+                            ui.horizontal(|ui| {
+                                ui.label("Громкость");
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        let mut total_volume = composition.borrow().get_volume();
+                                        if ui
+                                            .add(
+                                                Slider::new(&mut total_volume, 0.0..=1.0)
+                                                    .show_value(false),
+                                            )
+                                            .changed()
+                                        {
+                                            composition.borrow_mut().set_volume(total_volume);
+                                            sync_with_player(events, composition);
+                                        }
+                                    },
+                                );
+                            });
+                            ui.add_space(25.0);
+                            let threads = composition.borrow().threads().unwrap();
+
+                            let current_playing =
+                                if self.application.borrow().is_playing(composition) {
+                                    Some(
+                                        self.application
+                                            .borrow()
+                                            .get_player()
+                                            .borrow()
+                                            .get_current_playing(),
+                                    )
+                                } else {
+                                    None
+                                };
+
+                            for mut thread in threads {
+                                let mut remove_elements = vec![];
+                                let index = composition.borrow().index_of_thread(&thread);
+
+                                self.render_thread(
+                                    ui,
+                                    events,
+                                    &mut remove_elements,
+                                    &mut thread,
+                                    composition,
+                                    current_playing.as_ref().unwrap_or(&vec![]).get(index),
+                                );
+
+                                for element in remove_elements {
+                                    let _ = composition.borrow_mut().remove_audio(&thread, element);
+                                    sync_with_player(events, composition);
+                                    if composition.borrow().is_thread_empty(&thread) {
+                                        composition.borrow_mut().remove_thread(&thread);
                                     }
-                                },
-                            );
-                        });
-                        ui.add_space(25.0);
-                        let threads = composition.borrow().threads().unwrap();
-
-                        for mut thread in threads {
-                            let mut remove_elements = vec![];
-                            self.render_thread(
-                                ui,
-                                events,
-                                &mut remove_elements,
-                                &mut thread,
-                                &composition,
-                            );
-
-                            for element in remove_elements {
-                                let _ = composition.borrow_mut().remove_audio(&thread, element);
-                                sync_with_player(events, composition);
+                                }
                             }
-                        }
 
-                        ui.vertical_centered(|ui| {
-                            if ui.button("+").clicked() {
-                                let thread =
-                                    generate_thread_name(composition.borrow().threads().unwrap());
+                            ui.vertical_centered(|ui| {
+                                let threads = composition.borrow().threads().unwrap();
+                                let last_thread: Option<&String> = threads.last();
+                                if ui.button("+").clicked()
+                                && (last_thread.is_none() || !composition.borrow().is_thread_empty(last_thread.unwrap())) {
+                                    let thread = generate_thread_name(
+                                        composition.borrow().threads().unwrap(),
+                                    );
 
-                                composition.borrow_mut().push_thread(&thread).unwrap();
-                                self.current_thread = Some(thread);
-                            }
+                                    composition.borrow_mut().push_thread(&thread).unwrap();
+                                    self.current_thread = Some(thread);
+                                }
+                            });
                         });
-                    });
-            }).response.clicked() {
+                })
+                .response
+                .clicked()
+            {
                 self.current_thread = None;
             }
         }
@@ -161,6 +187,7 @@ impl CompositionWidget {
         remove_elements: &mut Vec<usize>,
         thread: &mut String,
         composition: &Audio,
+        current_playing: Option<&usize>,
     ) {
         let mut title = thread.clone();
         let color =
@@ -205,7 +232,21 @@ impl CompositionWidget {
                 let audio: Audio = composition.borrow().get_audio(thread, i).unwrap();
 
                 ui.horizontal(|ui| {
-                    ui.label(audio.borrow().get_title());
+                    let text = if current_playing.is_some() && &i == current_playing.unwrap() {
+                        RichText::new(audio.borrow().get_title()).strong()
+                    } else {
+                        RichText::new(audio.borrow().get_title())
+                    };
+
+                    if ui.label(text).clicked()
+                        && self.application.borrow().is_playing(composition)
+                    {
+                        self.application
+                            .borrow_mut()
+                            .get_player()
+                            .borrow_mut()
+                            .goto_track(composition.borrow().index_of_thread(thread), i);
+                    };
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(15.0);

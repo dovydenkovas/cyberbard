@@ -135,7 +135,7 @@ impl MapWidget {
                             let mut remove_after_render = None;
                             for i in 0..self.map.borrow().audio_count() {
                                 if let Some(c) = comp.borrow().as_ref()
-                                    && Rc::ptr_eq(&self.map.borrow().get_audio(i), &c)
+                                    && Rc::ptr_eq(&self.map.borrow().get_audio(i), c)
                                 {
                                     self.render_composition(
                                         ui,
@@ -252,12 +252,10 @@ impl MapWidget {
                         self.show_open_map_dialog = true;
                     }
                 });
-            } else {
-                if !map_removed {
-                    ui.centered_and_justified(|ui| {
-                        self.render_map(ctx, ui);
-                    });
-                }
+            } else if !map_removed {
+                ui.centered_and_justified(|ui| {
+                    self.render_map(ctx, ui);
+                });
             }
         }
     }

@@ -67,10 +67,10 @@ impl RawAudio for Track {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn get_stream(&self) -> Option<Stream> {
+    fn get_stream(&self) -> Stream {
         let mut s = self.source.get_stream();
         s.set_partial_volume(self.volume, 0, 0);
-        Some(s)
+        s
     }
 
     fn push_thread(&mut self, _caption: &str) -> Result<(), AudioError> {
@@ -87,6 +87,14 @@ impl RawAudio for Track {
 
     fn threads(&self) -> Result<Vec<String>, AudioError> {
         Err(AudioError::NotAComposition)
+    }
+
+    fn index_of_thread(&self, _name: &str) -> usize {
+        0
+    }
+
+    fn is_thread_empty(&self, _name: &str) -> bool {
+        true
     }
 
     fn push_audio(&mut self, _thread: &str, _audio: Audio) -> Result<(), AudioError> {

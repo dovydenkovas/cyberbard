@@ -28,10 +28,7 @@ impl Settings {
     pub fn new() -> Settings {
         match std::fs::read_to_string("settings.toml") {
             Ok(s) => {
-                match toml::from_str(&s) {
-                    Ok(settings) => settings,
-                    Err(_) => Settings::default(),
-                }
+                toml::from_str(&s).unwrap_or_default()
             },
             Err(_) => Settings::default()
         }

@@ -58,8 +58,8 @@ impl ThreadStream {
             unreachable!("Empty sources replacement");
         }
 
-        while self.current > sources.len() {
-            self.current -= 1;
+        while self.current >= sources.len() {
+            self.current = 0;
         }
 
         self.tracks = sources;
@@ -106,7 +106,7 @@ impl ThreadStream {
     pub fn stop(&mut self) {
         self.sink.stop();
         self.sink.clear();
-        self.current = 0;
+        self.goto(0);
         self.is_stopped = true;
     }
 
@@ -125,6 +125,13 @@ impl ThreadStream {
         if index == self.current {
             self.update_volume(self.volume);
         }
+    }
+
+    pub fn goto(&mut self, index: usize) {
+        self.current = index;
+        let _ = self.goto_next_avaliable();
+        self.play();
+        self.update_volume(self.volume);
     }
 
     pub fn extend(&mut self, other: ThreadStream) {

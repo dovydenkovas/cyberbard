@@ -77,6 +77,14 @@ impl Stream {
         self.threads
     }
 
+    pub fn get_current_playing(&self) -> Vec<usize> {
+        let mut res = vec![];
+        for th in &self.threads {
+            res.push(th.current);
+        }
+        res
+    }
+
     pub fn merge(&mut self, other: Stream) {
         for (i, pl) in other.threads.into_iter().enumerate() {
             if i < self.threads.len() {
@@ -134,5 +142,9 @@ impl Stream {
             thread.update();
         }
         std::thread::sleep(Duration::from_millis(5));
+    }
+
+    pub fn goto_track(&mut self, thread: usize, track: usize) {
+        self.threads[thread].goto(track);
     }
 }

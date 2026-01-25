@@ -95,12 +95,11 @@ impl Application {
 
     pub fn player_set_audio(&mut self, audio: Audio) {
         self.current_playing.replace(Some(Rc::clone(&audio)));
-        if let Some(s) = audio.borrow().get_stream() {
-            self.player.borrow_mut().set_stream(s);
-            self.player
-                .borrow_mut()
-                .set_volume(audio.borrow().get_volume());
-        }
+        let s = audio.borrow().get_stream();
+        self.player.borrow_mut().set_stream(s);
+        self.player
+            .borrow_mut()
+            .set_volume(audio.borrow().get_volume());
     }
 
     pub fn player_play(&mut self) {
@@ -113,11 +112,12 @@ impl Application {
 
     pub fn player_set_track_volume(&mut self, volume: f32, composition_index: usize, index: usize) {
         if self.current_playing.borrow().is_some()
-        && self.selected_compostion.borrow().is_some()
+            && self.selected_compostion.borrow().is_some()
             && Rc::ptr_eq(
-            self.selected_compostion.borrow().as_ref().unwrap(),
-            self.current_playing.borrow().as_ref().unwrap(),
-        ) {
+                self.selected_compostion.borrow().as_ref().unwrap(),
+                self.current_playing.borrow().as_ref().unwrap(),
+            )
+        {
             self.player
                 .borrow_mut()
                 .set_track_volume(volume, composition_index, index);
@@ -125,16 +125,23 @@ impl Application {
     }
 
     pub fn player_sync(&mut self) {
-        if self.current_playing.borrow().is_some()
-            && let Some(stream) = self
+        if self.current_playing.borrow().is_some() {
+            let stream = self
                 .current_playing
                 .borrow()
                 .as_ref()
                 .unwrap()
                 .borrow()
-                .get_stream()
-        {
+                .get_stream();
             self.player.borrow_mut().sync(stream);
+        }
+    }
+
+    pub fn is_playing(&self, audio: &Audio) -> bool {
+        if let Some(playing) = self.current_playing.borrow().as_ref() {
+            Rc::ptr_eq(playing, audio)
+        } else {
+            false
         }
     }
 

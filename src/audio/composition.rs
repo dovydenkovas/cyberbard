@@ -76,21 +76,17 @@ impl RawAudio for Composition {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn get_stream(&self) -> Option<Stream> {
+    fn get_stream(&self) -> Stream {
         let mut stream = Stream::new(vec![], self.volume);
-        let mut is_none = true;
 
         for (_, pl) in self.threads.iter() {
             let mut substream = Stream::new(vec![], self.volume);
             for audio in pl {
-                if let Some(s) = audio.borrow().get_stream() {
-                    substream.merge(s);
-                    is_none = false;
-                }
+                substream.merge(audio.borrow().get_stream());
             }
             stream.merge_parallel(substream);
         }
-        if is_none { None } else { Some(stream) }
+        stream
     }
 
     fn push_thread(&mut self, caption: &str) -> Result<(), AudioError> {
@@ -116,6 +112,14 @@ impl RawAudio for Composition {
 
     fn threads(&self) -> Result<Vec<String>, AudioError> {
         Ok(self.threads.iter().map(|k| k.0.clone()).collect())
+    }
+
+    fn index_of_thread(&self, name: &str) -> usize {
+        self.find_thread(name).unwrap_or(0)
+    }
+
+    fn is_thread_empty(&self, name: &str) -> bool {
+        self.threads[self.find_thread(name).unwrap()].1.is_empty()
     }
 
     fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError> {

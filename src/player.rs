@@ -30,6 +30,7 @@ enum Command {
     SyncStream(Stream),
     SetVolume(f32),
     SetTrackVolume(f32, usize, usize),
+    GotoTrack(usize, usize),
 }
 
 /// Music Player.
@@ -37,15 +38,18 @@ enum Command {
 pub struct Player {
     cmd_tx: Sender<Command>,
     paused: bool,
-    progress: Arc<Mutex<f32>>
+    progress: Arc<Mutex<f32>>,
+    current_playing: Arc<Mutex<Vec<usize>>>
 }
 
 impl Player {
     pub fn new() -> Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
         let progress = Arc::new(Mutex::new(0.0));
+        let current_playing = Arc::new(Mutex::new(vec![]));
 
         let total_progress = Arc::clone(&progress);
+        let current = Arc::clone(&current_playing);
 
         let _ = thread::spawn(move || {
             let mut opt_stream: Option<Stream> = None;
@@ -88,9 +92,13 @@ impl Player {
                             Ok(Command::SetTrackVolume(v, p, i)) => {
                                 stream.set_partial_volume(v, p, i)
                             }
+                            Ok(Command::GotoTrack(p, i)) => {
+                                stream.goto_track(p, i)
+                            }
 
                             Err(mpsc::TryRecvError::Empty) => {
                                 *total_progress.lock().unwrap() = stream.get_position();
+                                *current.lock().unwrap() = stream.get_current_playing();
                                 thread::sleep(Duration::from_millis(30));
                             }
                             Err(mpsc::TryRecvError::Disconnected) => {
@@ -106,7 +114,8 @@ impl Player {
         Player {
             cmd_tx,
             paused: true,
-            progress
+            progress,
+            current_playing
         }
     }
 
@@ -143,7 +152,7 @@ impl Player {
     }
 
     pub fn get_position(&self) -> f32 {
-        self.progress.lock().unwrap().clone()
+        *self.progress.lock().unwrap()
     }
 
     pub fn set_volume(&mut self, vol: f32) {
@@ -154,6 +163,15 @@ impl Player {
         let _ = self
             .cmd_tx
             .send(Command::SetTrackVolume(volume, thread_index, index));
+
+    }
+
+    pub fn goto_track(&mut self, thread_index: usize, index: usize) {
+        let _ = self.cmd_tx.send(Command::GotoTrack(thread_index, index));
+    }
+
+    pub fn get_current_playing(&self) -> Vec<usize> {
+        self.current_playing.lock().unwrap().clone()
     }
 }
 

@@ -71,7 +71,7 @@ impl ApplicationImp {
                 Event::SetupStorage { credentials } => {
                     // TODO: show error message
                     let setup_error = self.application.borrow_mut().setup_storage(credentials);
-                    if let Ok(_) = setup_error {
+                    if setup_error.is_ok() {
                         let storage = self.application.borrow().get_storage();
                         let map = self.application.borrow().get_root_map();
                         let player = self.application.borrow().get_player();
@@ -195,7 +195,7 @@ impl eframe::App for ApplicationImp {
 
 pub fn run_gui(application: crate::application::Application, settings: Rc<RefCell<Settings>>) {
     let options = NativeOptions {
-        viewport: ViewportBuilder::default().with_inner_size(&settings.borrow().default_size),
+        viewport: ViewportBuilder::default().with_inner_size(settings.borrow().default_size),
         ..Default::default()
     };
 
@@ -210,7 +210,7 @@ pub fn run_gui(application: crate::application::Application, settings: Rc<RefCel
             };
 
             let style = Style {
-                visuals: visuals,
+                visuals,
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);

@@ -37,12 +37,14 @@ pub trait RawAudio: erased_serde::Serialize {
     fn set_source(&mut self, source: Box<dyn Source>);
     fn get_volume(&self) -> f32;
     fn set_volume(&mut self, volume: f32);
-    fn get_stream(&self) -> Option<Stream>;
+    fn get_stream(&self) -> Stream;
 
     fn push_thread(&mut self, caption: &str) -> Result<(), AudioError>;
     fn rename_thread(&mut self, old_caption: &str, new_caption: &str);
     fn remove_thread(&mut self, caption: &str);
     fn threads(&self) -> Result<Vec<String>, AudioError>;
+    fn index_of_thread(&self, name: &str) -> usize;
+    fn is_thread_empty(&self, name: &str) -> bool;
 
     fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError>;
     fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError>;
