@@ -15,8 +15,7 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use egui::{
-    Color32,
-    ecolor::{hsv_from_rgb, rgb_from_hsv},
+    Color32, Visuals, ecolor::{hsv_from_rgb, rgb_from_hsv}
 };
 use rand::Rng;
 
@@ -50,6 +49,14 @@ pub fn reverse_color(color: String) -> String {
         (255.0 * bytes[1]) as u8,
         (255.0 * bytes[2]) as u8,
     )
+}
+
+pub fn text_color() -> Color32 {
+    if unsafe { IS_DARK } {
+        Visuals::dark().text_color()
+    } else {
+        Color32::from_rgb(20, 20, 20)
+    }
 }
 
 /// Create next preudorandom color.
@@ -127,7 +134,9 @@ mod tests {
 
     #[test]
     fn next_values() {
-        unsafe { PREV_COLOR = 1.0; }
+        unsafe {
+            PREV_COLOR = 1.0;
+        }
         // 1/2
         assert_eq!(next(), 0.5);
 

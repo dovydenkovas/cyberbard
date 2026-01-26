@@ -20,13 +20,10 @@ use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
-    application::Application,
-    audio::{Audio, track::Track},
-    gui::{
+    application::Application, audio::{Audio, track::Track}, colors, gui::{
         events::{Event, Events},
         widgets,
-    },
-    storage::{Storage, StorageCredentials},
+    }, storage::{Storage, StorageCredentials}
 };
 
 pub struct StorageWidget {
@@ -185,7 +182,7 @@ impl StorageWidget {
                                 .on_hover_text(tag.get_text())
                         } else {
                             total_length += tag.get_text().len();
-                            ui.add(Label::new(tag.get_text()))
+                            ui.label(RichText::new(tag.get_text()).color(colors::text_color()))
                         };
 
                         // Search tag on clicked.
