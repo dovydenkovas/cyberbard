@@ -32,7 +32,7 @@ pub struct Composition {
 
 impl Composition {
     pub fn new() -> Composition {
-        let title = "Мой крутой плейлист".to_string();
+        let title = t!("new_playlist_name").to_string();
 
         Composition {
             volume: 1.0,

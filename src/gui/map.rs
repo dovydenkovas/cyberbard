@@ -118,7 +118,7 @@ impl MapWidget {
                             // TODO: not real centered for now
                             ui.centered_and_justified(|ui| {
                                 ui.style_mut().interaction.selectable_labels = false;
-                                ui.heading("Плейлисты");
+                                ui.heading(t!("playlists"));
                             });
                         });
                     });
@@ -219,6 +219,10 @@ impl MapWidget {
 
     fn reneder_tools_panel(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button(rust_i18n::locale().to_string()).clicked() {
+                switch_next_locale();
+            }
+
             if ui.button("🌙".to_string()).clicked() {
                 events.push_back(Event::ToggleTheme);
                 self.application.borrow_mut().reverse_colors();
@@ -247,7 +251,7 @@ impl MapWidget {
                 }
 
                 ui.centered_and_justified(|ui| {
-                    let btn = Label::new("Добавить карту".to_string()).sense(Sense::click());
+                    let btn = Label::new(t!("add_scene").to_string()).sense(Sense::click());
                     if ui.add(btn).clicked() {
                         self.show_open_map_dialog = true;
                     }
@@ -327,7 +331,7 @@ impl MapWidget {
     fn render_open_map_dialog(&mut self, ctx: &egui::Context, _ui: &mut Ui) {
         // TODO: not to lock the main window
         let path = FileDialog::new()
-            .set_title("Выбор каталога с музыкой и файлами игры")
+            .set_title(t!("select_music_directory"))
             .add_filter("Image", &["png", "jpg", "jpeg", "webp", "bmp"])
             .pick_file();
 
@@ -364,7 +368,7 @@ fn scale_texture(win_w: f32, win_h: f32, w: f32, h: f32) -> (f32, f32) {
 fn load_image_from_path(path: &str) -> Result<egui::ColorImage, String> {
     // TODO: fix performance.
     let image = image::open(path)
-        .map_err(|e| format!("Failed to open image: {}", e))?
+        .map_err(|e| format!("{}: {}", t!("error_opening_image"), e))?
         .to_rgba8();
     let (width, height) = image.dimensions();
 
@@ -372,4 +376,13 @@ fn load_image_from_path(path: &str) -> Result<egui::ColorImage, String> {
         egui::ColorImage::from_rgba_premultiplied([width as usize, height as usize], &image);
 
     Ok(texture)
+}
+
+fn switch_next_locale() {
+    let current = rust_i18n::locale().to_string();
+    let locales = rust_i18n::available_locales!();
+    if let Some(mut i) = locales.iter().position(|l| *l == current.as_str()) {
+        i = (i + 1) % locales.len();
+        rust_i18n::set_locale(locales[i]);
+    }
 }

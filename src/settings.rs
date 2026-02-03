@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     pub dark_theme: bool,
     pub default_size: [f32; 2],
+    pub language: String,
 }
 
 impl Settings {
@@ -42,6 +43,6 @@ impl Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-         Self { dark_theme: true, default_size: [1200.0, 600.0]}
+         Self { dark_theme: true, default_size: [1200.0, 600.0], language: "en".to_string()}
     }
 }

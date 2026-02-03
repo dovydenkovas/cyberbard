@@ -101,7 +101,7 @@ impl CompositionWidget {
                             ui.add_space(20.0);
 
                             ui.horizontal(|ui| {
-                                ui.label("Громкость");
+                                ui.label(t!("volume"));
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
@@ -294,7 +294,7 @@ fn sync_with_player(
 fn generate_thread_name(names: Vec<String>) -> String {
     let mut i: usize = 1;
     while i < 100_000 {
-        let name = format!("Поток {i}");
+        let name = format!("{} {i}", t!("thread"));
         if !names.contains(&name) {
             return name;
         }

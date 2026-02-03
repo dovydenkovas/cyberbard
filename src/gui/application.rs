@@ -130,7 +130,7 @@ impl ApplicationImp {
                             let err = err.to_string();
                             thread::spawn(move || {
                                 MessageDialog::new()
-                                    .set_title("Ошибка сохранения файла")
+                                    .set_title(t!("error_saving_file"))
                                     .set_description(err)
                                     .set_level(rfd::MessageLevel::Error)
                                     .show();

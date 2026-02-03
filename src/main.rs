@@ -16,6 +16,12 @@
 
 use std::{cell::RefCell, rc::Rc};
 
+#[macro_use]
+extern crate rust_i18n;
+i18n!("locales");
+
+use rust_i18n::{locale, set_locale};
+
 use crate::{
     application::Application,
     map::Map,
@@ -42,6 +48,7 @@ fn main() {
     } else {
         colors::set_light();
     }
+    set_locale(&settings.borrow().language);
 
     // TODO: Allow startup without storage.
     let storage: Rc<RefCell<Box<dyn Storage>>> = Rc::new(RefCell::new(Box::new(
@@ -52,5 +59,6 @@ fn main() {
     let application = Application::new(storage, map, player);
 
     gui::application::run_gui(application, Rc::clone(&settings));
+    settings.borrow_mut().language = locale().to_string();
     settings.borrow().save();
 }

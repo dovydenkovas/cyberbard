@@ -59,7 +59,7 @@ impl StorageWidget {
 
     fn open_project(&mut self, events: &mut Events) {
         let path = FileDialog::new()
-            .set_title("Выбор каталога с музыкой и файлами игры")
+            .set_title(t!("open_project"))
             .pick_folder();
 
         if let Some(path) = path {
@@ -71,8 +71,8 @@ impl StorageWidget {
 
     fn save_project(&self, events: &mut Events) {
         let path = FileDialog::new()
-            .set_title("Сохраняем проект")
-            .add_filter("Теги и карты", &["yaml"])
+            .set_title(t!("save_project"))
+            .add_filter(t!("storage_file_type"), &["yaml"])
             .save_file();
 
         if let Some(path) = path {
@@ -123,7 +123,7 @@ impl StorageWidget {
         ui.horizontal(|ui| {
             ui.label("🔎".to_string());
             let search =
-                egui::TextEdit::singleline(&mut self.search_pattern).hint_text("Название или тег");
+                egui::TextEdit::singleline(&mut self.search_pattern).hint_text(t!("search_title_or_tag"));
             if ui.add(search).changed() {
                 self.find();
             }
@@ -208,12 +208,13 @@ impl StorageWidget {
         index: usize,
         _events: &mut Events,
     ) {
-        egui::Window::new("Настройка тегов")
+        egui::Window::new(t!("tag_settings"))
             .resizable(true)
             .default_size(egui::vec2(300.0, 200.0))
             .show(ctx, |ui| {
                 ui.heading(format!(
-                    "Теги для {}",
+                    "{} {}",
+                    t!("tags_for"),
                     self.storage.borrow().get(index).unwrap().get_title()
                 ));
                 ui.separator();
@@ -275,7 +276,7 @@ impl StorageWidget {
 
                 ui.add_space(10.0);
                 ui.vertical_centered(|ui| {
-                    if ui.button("Добавить тег").clicked() {
+                    if ui.button(t!("add_tag")).clicked() {
                         self.storage.borrow_mut().add_tag();
                     }
                 });
@@ -283,7 +284,7 @@ impl StorageWidget {
 
                 ui.separator();
                 ui.vertical_centered_justified(|ui| {
-                    if ui.button("Готово").clicked() {
+                    if ui.button(t!("done")).clicked() {
                         self.edit_track_index = None;
                     }
                 });
