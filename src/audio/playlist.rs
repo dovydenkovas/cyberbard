@@ -20,21 +20,21 @@ use crate::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
 use crate::stream::Stream;
 
-/// Composition is container for other compositions and tracks.
+/// Playlist is container for other playlists and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
-/// Composition implements Audio trait.
+/// Playlist implements Audio trait.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Composition {
+pub struct Playlist {
     volume: f32,
     title: String,
     threads: Vec<(String, Vec<Audio>)>,
 }
 
-impl Composition {
-    pub fn new() -> Composition {
+impl Playlist {
+    pub fn new() -> Playlist {
         let title = t!("new_playlist_name").to_string();
 
-        Composition {
+        Playlist {
             volume: 1.0,
             threads: Vec::new(),
             title,
@@ -51,7 +51,7 @@ impl Composition {
 }
 
 #[typetag::serde]
-impl RawAudio for Composition {
+impl RawAudio for Playlist {
     fn get_title(&self) -> String {
         self.title.clone()
     }
@@ -65,7 +65,7 @@ impl RawAudio for Composition {
     }
 
     fn set_source(&mut self, _: Box<dyn Source>) {
-        // Not implemented for composition
+        // Not implemented for playlist
     }
 
     fn get_volume(&self) -> f32 {

@@ -95,7 +95,7 @@ impl StorageWidget {
     fn send_source_to_map(&self, index: usize, events: &mut Events) {
         let source = self.storage.borrow().get(index).unwrap();
         let audio: Audio = Rc::new(RefCell::new(Box::new(Track::new(source))));
-        events.push_back(Event::AddAudioToComposition { audio });
+        events.push_back(Event::AddAudioToPlaylist { audio });
     }
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
@@ -162,7 +162,7 @@ impl StorageWidget {
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(20.0);
-                if self.application.borrow().has_selected_composition()
+                if self.application.borrow().has_selected_playlist()
                     && ui.button("+".to_string()).clicked()
                 {
                     self.send_source_to_map(index, events);

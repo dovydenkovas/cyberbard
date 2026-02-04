@@ -24,15 +24,14 @@ use crate::{
     gui::events::{Event, Events},
 };
 
-pub struct CompositionWidget {
-    // composition: Rc<RefCell<Option<Audio>>>,
+pub struct PlaylistWidget {
     current_thread: Option<String>,
     application: Rc<RefCell<Application>>,
 }
 
-impl CompositionWidget {
-    pub fn new(application: Rc<RefCell<Application>>) -> CompositionWidget {
-        CompositionWidget {
+impl PlaylistWidget {
+    pub fn new(application: Rc<RefCell<Application>>) -> PlaylistWidget {
+        PlaylistWidget {
             current_thread: None,
             application,
         }
@@ -42,7 +41,7 @@ impl CompositionWidget {
         if self
             .application
             .borrow()
-            .get_selected_composition()
+            .get_selected_playlist()
             .borrow_mut()
             .as_ref().is_some()
         {
@@ -51,30 +50,30 @@ impl CompositionWidget {
     }
 
     pub fn insert_audio(&mut self, audio: Audio) {
-        if let Some(composition) = self
+        if let Some(playlist) = self
             .application
             .borrow()
-            .get_selected_composition()
+            .get_selected_playlist()
             .borrow_mut()
             .as_ref()
         {
             let thread = if let Some(thread) = &self.current_thread {
                 thread.clone()
-            } else if let Some(thread) = composition.borrow().threads().unwrap().first() {
+            } else if let Some(thread) = playlist.borrow().threads().unwrap().first() {
                 thread.clone()
             } else {
                 let thread = generate_thread_name(Vec::new());
-                composition.borrow_mut().push_thread(&thread).unwrap();
+                playlist.borrow_mut().push_thread(&thread).unwrap();
                 thread
             };
 
-            composition.borrow_mut().push_audio(&thread, audio).unwrap();
+            playlist.borrow_mut().push_audio(&thread, audio).unwrap();
         }
     }
 
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
-        let comp = self.application.borrow().get_selected_composition();
-        if let Some(composition) = comp.borrow_mut().as_ref() {
+        let comp = self.application.borrow().get_selected_playlist();
+        if let Some(playlist) = comp.borrow_mut().as_ref() {
             let builder = UiBuilder::new().sense(Sense::click());
             if ui
                 .scope_builder(builder, |ui| {
@@ -82,7 +81,7 @@ impl CompositionWidget {
                         .vscroll(true)
                         .auto_shrink(false)
                         .show(ui, |ui| {
-                            let mut title = composition.borrow().get_title();
+                            let mut title = playlist.borrow().get_title();
                             ui.vertical_centered(|ui| {
                                 if ui
                                     .add(
@@ -93,8 +92,8 @@ impl CompositionWidget {
                                     )
                                     .changed()
                                 {
-                                    composition.borrow_mut().set_title(title);
-                                    sync_with_player(events, composition);
+                                    playlist.borrow_mut().set_title(title);
+                                    sync_with_player(events, playlist);
                                 }
                             });
 
@@ -105,7 +104,7 @@ impl CompositionWidget {
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
-                                        let mut total_volume = composition.borrow().get_volume();
+                                        let mut total_volume = playlist.borrow().get_volume();
                                         if ui
                                             .add(
                                                 Slider::new(&mut total_volume, 0.0..=1.0)
@@ -113,17 +112,17 @@ impl CompositionWidget {
                                             )
                                             .changed()
                                         {
-                                            composition.borrow_mut().set_volume(total_volume);
-                                            sync_with_player(events, composition);
+                                            playlist.borrow_mut().set_volume(total_volume);
+                                            sync_with_player(events, playlist);
                                         }
                                     },
                                 );
                             });
                             ui.add_space(25.0);
-                            let threads = composition.borrow().threads().unwrap();
+                            let threads = playlist.borrow().threads().unwrap();
 
                             let current_playing =
-                                if self.application.borrow().is_playing(composition) {
+                                if self.application.borrow().is_playing(playlist) {
                                     Some(
                                         self.application
                                             .borrow()
@@ -137,36 +136,36 @@ impl CompositionWidget {
 
                             for mut thread in threads {
                                 let mut remove_elements = vec![];
-                                let index = composition.borrow().index_of_thread(&thread);
+                                let index = playlist.borrow().index_of_thread(&thread);
 
                                 self.render_thread(
                                     ui,
                                     events,
                                     &mut remove_elements,
                                     &mut thread,
-                                    composition,
+                                    playlist,
                                     current_playing.as_ref().unwrap_or(&vec![]).get(index),
                                 );
 
                                 for element in remove_elements {
-                                    let _ = composition.borrow_mut().remove_audio(&thread, element);
-                                    sync_with_player(events, composition);
-                                    if composition.borrow().is_thread_empty(&thread) {
-                                        composition.borrow_mut().remove_thread(&thread);
+                                    let _ = playlist.borrow_mut().remove_audio(&thread, element);
+                                    sync_with_player(events, playlist);
+                                    if playlist.borrow().is_thread_empty(&thread) {
+                                        playlist.borrow_mut().remove_thread(&thread);
                                     }
                                 }
                             }
 
                             ui.vertical_centered(|ui| {
-                                let threads = composition.borrow().threads().unwrap();
+                                let threads = playlist.borrow().threads().unwrap();
                                 let last_thread: Option<&String> = threads.last();
                                 if ui.button("+").clicked()
-                                && (last_thread.is_none() || !composition.borrow().is_thread_empty(last_thread.unwrap())) {
+                                && (last_thread.is_none() || !playlist.borrow().is_thread_empty(last_thread.unwrap())) {
                                     let thread = generate_thread_name(
-                                        composition.borrow().threads().unwrap(),
+                                        playlist.borrow().threads().unwrap(),
                                     );
 
-                                    composition.borrow_mut().push_thread(&thread).unwrap();
+                                    playlist.borrow_mut().push_thread(&thread).unwrap();
                                     self.current_thread = Some(thread);
                                 }
                             });
@@ -186,7 +185,7 @@ impl CompositionWidget {
         events: &mut Events,
         remove_elements: &mut Vec<usize>,
         thread: &mut String,
-        composition: &Audio,
+        playlist: &Audio,
         current_playing: Option<&usize>,
     ) {
         let mut title = thread.clone();
@@ -211,7 +210,7 @@ impl CompositionWidget {
                         .background_color(Color32::TRANSPARENT),
                 );
                 if title_edit.changed() {
-                    composition.borrow_mut().rename_thread(thread, &title);
+                    playlist.borrow_mut().rename_thread(thread, &title);
                     *thread = title;
                 }
 
@@ -220,16 +219,16 @@ impl CompositionWidget {
                 }
 
                 if ui.label("🗙").clicked() {
-                    composition.borrow_mut().remove_thread(thread);
+                    playlist.borrow_mut().remove_thread(thread);
                 }
             });
 
             ui.add_space(5.0);
-            let n = composition.borrow().audio_count(thread);
+            let n = playlist.borrow().audio_count(thread);
 
             for i in 0..n {
                 // TODO: set labels clickable to select a track in the thread.
-                let audio: Audio = composition.borrow().get_audio(thread, i).unwrap();
+                let audio: Audio = playlist.borrow().get_audio(thread, i).unwrap();
 
                 ui.horizontal(|ui| {
                     let text = if current_playing.is_some() && &i == current_playing.unwrap() {
@@ -239,13 +238,13 @@ impl CompositionWidget {
                     };
 
                     if ui.label(text).clicked()
-                        && self.application.borrow().is_playing(composition)
+                        && self.application.borrow().is_playing(playlist)
                     {
                         self.application
                             .borrow_mut()
                             .get_player()
                             .borrow_mut()
-                            .goto_track(composition.borrow().index_of_thread(thread), i);
+                            .goto_track(playlist.borrow().index_of_thread(thread), i);
                     };
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -265,7 +264,7 @@ impl CompositionWidget {
                             audio.borrow_mut().set_volume(volume);
                             events.push_back(Event::PlayerSetTrackVolume {
                                 volume,
-                                composition_index: composition
+                                playlist_index: playlist
                                     .borrow()
                                     .threads()
                                     .unwrap()
@@ -286,7 +285,7 @@ impl CompositionWidget {
 
 fn sync_with_player(
     events: &mut std::collections::VecDeque<super::events::Event>,
-    _composition: &Audio,
+    _playlist: &Audio,
 ) {
     events.push_back(super::events::Event::PlayerSync);
 }

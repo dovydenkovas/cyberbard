@@ -30,7 +30,7 @@ pub enum Event {
     Play {
         audio: Audio,
     },
-    AddAudioToComposition {
+    AddAudioToPlaylist {
         audio: Audio,
     },
     PlayerSync,
@@ -39,7 +39,7 @@ pub enum Event {
     },
     PlayerSetTrackVolume {
         volume: f32,
-        composition_index: usize,
+        playlist_index: usize,
         index: usize,
     },
     Select {

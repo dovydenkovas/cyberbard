@@ -21,24 +21,24 @@ use std::{
 use egui::TextureHandle;
 use serde::{Deserialize, Serialize};
 
-use crate::audio::{Audio, composition::Composition};
+use crate::audio::{Audio, playlist::Playlist};
 
 #[derive(Serialize, Deserialize)]
-pub struct Map {
+pub struct Scene {
     audio: Vec<Audio>,
-    maps: BTreeMap<Point, Rc<RefCell<Map>>>,
+    maps: BTreeMap<Point, Rc<RefCell<Scene>>>,
 
     #[serde(skip)]
-    parent: Option<Rc<RefCell<Map>>>,
+    parent: Option<Rc<RefCell<Scene>>>,
 
     #[serde(skip)]
     background: Option<TextureHandle>,
     background_path: Option<PathBuf>,
 }
 
-impl Map {
-    pub fn new(parent: Option<Rc<RefCell<Map>>>) -> Map {
-        Map {
+impl Scene {
+    pub fn new(parent: Option<Rc<RefCell<Scene>>>) -> Scene {
+        Scene {
             audio: vec![],
             maps: BTreeMap::new(),
             parent,
@@ -47,11 +47,11 @@ impl Map {
         }
     }
 
-    pub fn set_parent(&mut self, new: Option<Rc<RefCell<Map>>>) {
+    pub fn set_parent(&mut self, new: Option<Rc<RefCell<Scene>>>) {
         self.parent = new;
     }
 
-    pub fn insert_map(&mut self, point: Point, map: Rc<RefCell<Map>>) {
+    pub fn insert_map(&mut self, point: Point, map: Rc<RefCell<Scene>>) {
         self.maps.insert(point, map);
     }
 
@@ -61,18 +61,18 @@ impl Map {
         }
     }
 
-    pub fn get_map(&self, child: &Point) -> Option<Rc<RefCell<Map>>> {
+    pub fn get_map(&self, child: &Point) -> Option<Rc<RefCell<Scene>>> {
         match self.maps.get(child) {
             Some(v) => Some(Rc::clone(v)),
             None => None,
         }
     }
 
-    pub fn iter_maps<'a>(&'a self) -> btree_map::Keys<'a, Point, Rc<RefCell<Map>>> {
+    pub fn iter_maps<'a>(&'a self) -> btree_map::Keys<'a, Point, Rc<RefCell<Scene>>> {
         self.maps.keys()
     }
 
-    pub fn get_parent(&self) -> Option<Rc<RefCell<Map>>> {
+    pub fn get_parent(&self) -> Option<Rc<RefCell<Scene>>> {
         match self.parent.as_ref() {
             Some(v) => Some(Rc::clone(v)),
             None => None,
@@ -98,7 +98,7 @@ impl Map {
     }
 
     pub fn push_new_audio(&mut self) {
-        let audio: Audio = Rc::new(RefCell::new(Box::new(Composition::new())));
+        let audio: Audio = Rc::new(RefCell::new(Box::new(Playlist::new())));
         self.audio.push(audio);
     }
 

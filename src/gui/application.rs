@@ -28,8 +28,8 @@ use crate::colors;
 use crate::gui::events::Event;
 use crate::settings::Settings;
 
-use super::composition::CompositionWidget;
-use super::map::MapWidget;
+use super::playlist::PlaylistWidget;
+use super::scene::MapWidget;
 use super::player::PlayerWidget;
 use super::storage::StorageWidget;
 
@@ -41,7 +41,7 @@ pub struct ApplicationImp {
     storage_widget: StorageWidget,
     map_widget: MapWidget,
     player_widget: PlayerWidget,
-    composition_widget: CompositionWidget,
+    playlist_widget: PlaylistWidget,
     settings: Rc<RefCell<Settings>>,
     last_upd: std::time::Instant,
 }
@@ -59,7 +59,7 @@ impl ApplicationImp {
             storage_widget: StorageWidget::new(storage, Rc::clone(&application)),
             map_widget: MapWidget::new(map, Rc::clone(&application)),
             player_widget: PlayerWidget::new(player),
-            composition_widget: CompositionWidget::new(Rc::clone(&application)),
+            playlist_widget: PlaylistWidget::new(Rc::clone(&application)),
             settings,
             last_upd: std::time::Instant::now(),
         }
@@ -79,8 +79,8 @@ impl ApplicationImp {
                             StorageWidget::new(storage, Rc::clone(&self.application));
                         self.map_widget = MapWidget::new(map, Rc::clone(&self.application));
                         self.player_widget = PlayerWidget::new(player);
-                        self.composition_widget =
-                            CompositionWidget::new(Rc::clone(&self.application));
+                        self.playlist_widget =
+                            PlaylistWidget::new(Rc::clone(&self.application));
                     }
                 }
                 Event::Play { audio } => {
@@ -88,8 +88,8 @@ impl ApplicationImp {
                     self.application.borrow_mut().player_set_audio(audio);
                     self.application.borrow_mut().player_play();
                 }
-                Event::AddAudioToComposition { audio } => {
-                    self.composition_widget.insert_audio(Rc::clone(&audio));
+                Event::AddAudioToPlaylist { audio } => {
+                    self.playlist_widget.insert_audio(Rc::clone(&audio));
                     self.application.borrow_mut().player_sync();
                 }
                 Event::PlayerSync => {
@@ -109,19 +109,19 @@ impl ApplicationImp {
                 }
                 Event::PlayerSetTrackVolume {
                     volume,
-                    composition_index,
+                    playlist_index,
                     index,
                 } => self.application.borrow_mut().player_set_track_volume(
                     volume,
-                    composition_index,
+                    playlist_index,
                     index,
                 ),
 
                 Event::Select { audio } => {
                     self.application
                         .borrow_mut()
-                        .set_selected_composition(Some(audio));
-                    self.composition_widget.sync_with_application();
+                        .select_playlist(Some(audio));
+                    self.playlist_widget.sync_with_application();
                 }
                 Event::SaveProject { path } => {
                     match self.application.borrow_mut().save_project(path) {
@@ -174,7 +174,7 @@ impl eframe::App for ApplicationImp {
             .show(ctx, |ui| {
                 self.player_widget.update(ctx, ui, &mut self.events);
                 ui.separator();
-                self.composition_widget.update(ctx, ui, &mut self.events);
+                self.playlist_widget.update(ctx, ui, &mut self.events);
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {

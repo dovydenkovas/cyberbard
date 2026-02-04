@@ -1035,6 +1035,7 @@ dependencies = [
  "rust-i18n",
  "serde",
  "serde_yaml",
+ "tempfile",
  "toml 0.9.11+spec-1.1.0",
  "typetag",
  "walkdir",

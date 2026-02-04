@@ -19,7 +19,7 @@ use std::{cell::RefCell, fs, io, path::PathBuf, rc::Rc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Map, Player, Storage,
+    Scene, Player, Storage,
     audio::{Audio, AudioCell},
     storage::StorageCredentials,
 };
@@ -27,12 +27,12 @@ use crate::{
 #[derive(Serialize, Deserialize)]
 pub struct Application {
     storage: Rc<RefCell<Box<dyn Storage>>>,
-    root_map: Rc<RefCell<Map>>,
+    root_map: Rc<RefCell<Scene>>,
 
     #[serde(skip)]
     player: Rc<RefCell<Player>>,
     #[serde(skip)]
-    selected_compostion: AudioCell,
+    selected_playlist: AudioCell,
     #[serde(skip)]
     current_playing: AudioCell,
 }
@@ -40,14 +40,14 @@ pub struct Application {
 impl Application {
     pub fn new(
         storage: Rc<RefCell<Box<dyn Storage>>>,
-        root_map: Rc<RefCell<Map>>,
+        root_map: Rc<RefCell<Scene>>,
         player: Rc<RefCell<Player>>,
     ) -> Application {
         Application {
             storage,
             root_map,
             player,
-            selected_compostion: Rc::new(RefCell::new(None)),
+            selected_playlist: Rc::new(RefCell::new(None)),
             current_playing: Rc::new(RefCell::new(None)),
         }
     }
@@ -73,24 +73,24 @@ impl Application {
         Rc::clone(&self.player)
     }
 
-    pub fn get_root_map(&self) -> Rc<RefCell<Map>> {
+    pub fn get_root_map(&self) -> Rc<RefCell<Scene>> {
         Rc::clone(&self.root_map)
     }
 
-    pub fn get_selected_composition(&self) -> AudioCell {
-        Rc::clone(&self.selected_compostion)
+    pub fn get_selected_playlist(&self) -> AudioCell {
+        Rc::clone(&self.selected_playlist)
     }
 
-    pub fn has_selected_composition(&self) -> bool {
-        self.selected_compostion.borrow().is_some()
+    pub fn has_selected_playlist(&self) -> bool {
+        self.selected_playlist.borrow().is_some()
     }
 
     pub fn get_current_playing(&self) -> AudioCell {
         Rc::clone(&self.current_playing)
     }
 
-    pub fn set_selected_composition(&self, comp: Option<Audio>) {
-        self.selected_compostion.replace(comp);
+    pub fn select_playlist(&self, comp: Option<Audio>) {
+        self.selected_playlist.replace(comp);
     }
 
     pub fn player_set_audio(&mut self, audio: Audio) {
@@ -110,17 +110,17 @@ impl Application {
         self.player.borrow_mut().set_volume(volume);
     }
 
-    pub fn player_set_track_volume(&mut self, volume: f32, composition_index: usize, index: usize) {
+    pub fn player_set_track_volume(&mut self, volume: f32, playlist_index: usize, index: usize) {
         if self.current_playing.borrow().is_some()
-            && self.selected_compostion.borrow().is_some()
+            && self.selected_playlist.borrow().is_some()
             && Rc::ptr_eq(
-                self.selected_compostion.borrow().as_ref().unwrap(),
+                self.selected_playlist.borrow().as_ref().unwrap(),
                 self.current_playing.borrow().as_ref().unwrap(),
             )
         {
             self.player
                 .borrow_mut()
-                .set_track_volume(volume, composition_index, index);
+                .set_track_volume(volume, playlist_index, index);
         }
     }
 
@@ -177,7 +177,7 @@ impl Application {
         self.current_playing.replace(None);
         self.player.borrow_mut().reset();
         self.root_map = app.root_map;
-        self.selected_compostion.replace(None);
+        self.selected_playlist.replace(None);
         self.storage = app.storage;
 
         let current = Some(Rc::clone(&self.root_map));
@@ -204,9 +204,9 @@ fn find_yaml_files(dir_path: &PathBuf) -> io::Result<Vec<std::path::PathBuf>> {
 }
 
 fn restore_map(
-    map: &mut Rc<RefCell<Map>>,
-    parent: Option<Rc<RefCell<Map>>>,
-    current: Option<Rc<RefCell<Map>>>,
+    map: &mut Rc<RefCell<Scene>>,
+    parent: Option<Rc<RefCell<Scene>>>,
+    current: Option<Rc<RefCell<Scene>>>,
 ) {
     map.borrow_mut().set_parent(parent);
     for m in map.borrow().iter_maps() {

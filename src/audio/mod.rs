@@ -14,7 +14,7 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-pub mod composition;
+pub mod playlist;
 pub mod track;
 
 use std::cell::RefCell;
@@ -28,7 +28,7 @@ use crate::stream::Stream;
 pub type Audio = Rc<RefCell<Box<dyn RawAudio>>>;
 pub type AudioCell = Rc<RefCell<Option<Audio>>>;
 
-/// Audio trait. Describe Track and Composition interface.
+/// Audio trait. Describe Track and Playlist interface.
 #[typetag::serde(tag = "type")]
 pub trait RawAudio: erased_serde::Serialize {
     fn get_title(&self) -> String;
@@ -54,7 +54,7 @@ pub trait RawAudio: erased_serde::Serialize {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum AudioError {
-    NotAComposition,
+    NotAPlaylist,
     NotATrack,
     OutOfRange,
 }

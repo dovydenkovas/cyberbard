@@ -21,7 +21,7 @@ use crate::storage::source::Source;
 use crate::stream::Stream;
 
 /// Track is container one Stream and it's settings.
-/// Composition implements Audio trait.
+/// Track implements Audio trait.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Track {
     title: String,
@@ -74,7 +74,7 @@ impl RawAudio for Track {
     }
 
     fn push_thread(&mut self, _caption: &str) -> Result<(), AudioError> {
-        Err(AudioError::NotAComposition)
+        Err(AudioError::NotAPlaylist)
     }
 
     fn rename_thread(&mut self, _old_caption: &str, _new_caption: &str) {
@@ -86,7 +86,7 @@ impl RawAudio for Track {
     }
 
     fn threads(&self) -> Result<Vec<String>, AudioError> {
-        Err(AudioError::NotAComposition)
+        Err(AudioError::NotAPlaylist)
     }
 
     fn index_of_thread(&self, _name: &str) -> usize {
@@ -98,15 +98,15 @@ impl RawAudio for Track {
     }
 
     fn push_audio(&mut self, _thread: &str, _audio: Audio) -> Result<(), AudioError> {
-        Err(AudioError::NotAComposition)
+        Err(AudioError::NotAPlaylist)
     }
 
     fn remove_audio(&mut self, _thread: &str, _index: usize) -> Result<(), AudioError> {
-        Err(AudioError::NotAComposition)
+        Err(AudioError::NotAPlaylist)
     }
 
     fn get_audio(&self, _thread: &str, _index: usize) -> Result<Audio, AudioError> {
-        Err(AudioError::NotAComposition)
+        Err(AudioError::NotAPlaylist)
     }
 
     fn audio_count(&self, _thread: &str) -> usize {

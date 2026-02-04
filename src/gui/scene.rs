@@ -20,13 +20,13 @@ use crate::{
     application::Application,
     audio::Audio,
     gui::events::{Event, Events},
-    map::{Map, Point},
+    scene::{Scene, Point},
 };
 use egui::{Label, Sense, Ui, UiBuilder, Vec2, load::SizedTexture, vec2};
 use rfd::FileDialog;
 
 pub struct MapWidget {
-    map: Rc<RefCell<Map>>,
+    map: Rc<RefCell<Scene>>,
     is_root: bool,
     hide_map: bool,
     show_open_map_dialog: bool,
@@ -34,7 +34,7 @@ pub struct MapWidget {
 }
 
 impl MapWidget {
-    pub fn new(map: Rc<RefCell<Map>>, application: Rc<RefCell<Application>>) -> MapWidget {
+    pub fn new(map: Rc<RefCell<Scene>>, application: Rc<RefCell<Application>>) -> MapWidget {
         MapWidget {
             map,
             is_root: true,
@@ -66,38 +66,38 @@ impl MapWidget {
         self.map.borrow_mut().erase_map(point);
     }
 
-    fn select_composition(&self, audio: Audio, events: &mut Events) {
+    fn select_playlist(&self, audio: Audio, events: &mut Events) {
         events.push_back(Event::Play {
             audio: Rc::clone(&audio),
         });
         events.push_back(Event::Select { audio });
     }
 
-    fn add_composition(&mut self) {
+    fn add_playlist(&mut self) {
         let i = self.map.borrow().audio_count();
         self.map.borrow_mut().push_new_audio();
         let comp = self.map.borrow().get_audio(i);
         self.application
             .borrow_mut()
-            .set_selected_composition(Some(comp));
+            .select_playlist(Some(comp));
     }
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         if self.hide_map {
-            self.render_compositions(ctx, ui, events);
+            self.render_playlists(ctx, ui, events);
         } else {
             egui::SidePanel::left("Tracks")
                 .resizable(true)
                 .default_width(200.0)
                 .show_inside(ui, |ui| {
-                    self.render_compositions(ctx, ui, events);
+                    self.render_playlists(ctx, ui, events);
                 });
             ui.add_space(10.0);
             self.render_map_widget(ctx, ui, events);
         }
     }
 
-    fn render_compositions(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
+    fn render_playlists(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         let builder = UiBuilder::new().sense(Sense::click());
         if ui
             .scope_builder(builder, |ui| {
@@ -128,7 +128,7 @@ impl MapWidget {
                     .vscroll(true)
                     .auto_shrink(false)
                     .show(ui, |ui| {
-                        let comp = self.application.borrow().get_selected_composition();
+                        let comp = self.application.borrow().get_selected_playlist();
 
                         ui.vertical_centered_justified(|ui| {
                             ui.add_space(20.0);
@@ -137,7 +137,7 @@ impl MapWidget {
                                 if let Some(c) = comp.borrow().as_ref()
                                     && Rc::ptr_eq(&self.map.borrow().get_audio(i), c)
                                 {
-                                    self.render_composition(
+                                    self.render_playlist(
                                         ui,
                                         &self.map,
                                         i,
@@ -146,7 +146,7 @@ impl MapWidget {
                                         true,
                                     );
                                 } else {
-                                    self.render_composition(
+                                    self.render_playlist(
                                         ui,
                                         &self.map,
                                         i,
@@ -168,7 +168,7 @@ impl MapWidget {
                                 .min_size(Vec2::new(40.0, 40.0))
                                 .corner_radius(90.0);
                             if ui.add(btn).clicked() {
-                                self.add_composition();
+                                self.add_playlist();
                             }
                         });
                     });
@@ -181,13 +181,13 @@ impl MapWidget {
     }
 
     fn reset_selection(&mut self) {
-        self.application.borrow_mut().set_selected_composition(None);
+        self.application.borrow_mut().select_playlist(None);
     }
 
-    fn render_composition(
+    fn render_playlist(
         &self,
         ui: &mut Ui,
-        map: &Rc<RefCell<Map>>,
+        map: &Rc<RefCell<Scene>>,
         index: usize,
         events: &mut Events,
         remove_after_render: &mut Option<usize>,
@@ -209,7 +209,7 @@ impl MapWidget {
 
         let response = ui.add(btn);
         if response.clicked() {
-            self.select_composition(audio, events);
+            self.select_playlist(audio, events);
         }
         if response.secondary_clicked() {
             remove_after_render.replace(index);
@@ -291,7 +291,7 @@ impl MapWidget {
         {
             let x = (pos.x - o.x - 0.5 * child_radius * w) / w + 0.5;
             let y = (pos.y - o.y - 0.5 * child_radius * w) / h + 0.5;
-            let parent = Rc::new(RefCell::new(Map::new(Some(Rc::clone(&self.map)))));
+            let parent = Rc::new(RefCell::new(Scene::new(Some(Rc::clone(&self.map)))));
             self.map.borrow_mut().insert_map(Point { x, y }, parent);
         }
 
