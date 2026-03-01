@@ -76,17 +76,17 @@ impl RawAudio for Playlist {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn get_stream(&self) -> Stream {
+    fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
         let mut stream = Stream::new(vec![], self.volume);
 
         for (_, pl) in self.threads.iter() {
             let mut substream = Stream::new(vec![], self.volume);
             for audio in pl {
-                substream.merge(audio.borrow().get_stream());
+                substream.merge(audio.borrow().get_stream()?);
             }
             stream.merge_parallel(substream);
         }
-        stream
+        Ok(stream)
     }
 
     fn push_thread(&mut self, caption: &str) -> Result<(), AudioError> {
@@ -177,7 +177,7 @@ mod tests {
     fn track() {
         let mut playlist = Playlist::new();
 
-        assert_eq!("title", playlist.get_title());
+        assert_eq!("My cool playlist", playlist.get_title());
         playlist.set_title("title 2".into());
         assert_eq!("title 2", playlist.get_title());
 
@@ -191,7 +191,7 @@ mod tests {
         playlist.set_volume(1.2);
         assert_eq!(1.0, playlist.get_volume());
 
-        assert!(playlist.get_stream().is_empty());
+        assert!(playlist.get_stream().unwrap().is_empty());
 
         assert!(playlist.push_thread("tread".into()).is_ok());
         assert!(playlist.push_thread("thread 1".into()).is_ok());
@@ -200,7 +200,8 @@ mod tests {
         playlist.rename_thread("tread".into(), "thread".into());
         playlist.rename_thread("12".into(), "14".into());
 
-        playlist.remove_thread("tread 2".into());
+        playlist.remove_thread("tread 1".into());
+        playlist.remove_thread("thread 2".into());
 
         assert_eq!(vec!["thread".to_string(), "thread 1".to_string()], playlist.threads().unwrap());
 
@@ -209,7 +210,9 @@ mod tests {
         assert!(playlist.is_thread_empty("thread 1".into()));
 
         let audio = Playlist::new();
-        assert!(playlist.push_audio("asdfasd", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
+        assert!(playlist.push_audio("asdfasd", Rc::new(RefCell::new(Box::new(audio)))).is_err());
+        let audio = Playlist::new();
+        assert!(playlist.push_audio("thread 1", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
 
         let audio = Playlist::new();
         assert!(playlist.push_audio("thread", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
@@ -217,6 +220,6 @@ mod tests {
         assert_eq!(1, playlist.audio_count("thread"));
 
         assert!(playlist.remove_audio("thread", 0).is_ok());
-        assert!(playlist.get_audio("thread 1", 0).is_err());
+        playlist.get_audio("thread 1", 0).unwrap();
     }
 }

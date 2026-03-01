@@ -34,7 +34,7 @@ impl Source {
         }
     }
 
-    pub fn get_stream(&self) -> Stream {
+    pub fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
         Stream::from_source(Box::new(LocalOpener::new(self.filename.clone())), 100.0)
     }
 
@@ -83,7 +83,7 @@ mod tests {
         let source = Source::new("/tmp/test.mp3".into(), title.into());
 
         assert_eq!(title, source.get_title());
-        assert!(source.get_stream().is_empty());
+        assert!(source.get_stream().is_err());
     }
 
     #[test]

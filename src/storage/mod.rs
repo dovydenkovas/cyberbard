@@ -207,7 +207,7 @@ mod tests {
         assert!(storage.get(0).is_none());
         assert_eq!(0, storage.len());
 
-        assert!(storage.get_caption().is_empty());
+        assert_eq!("New storage", storage.get_caption());
         storage.set_caption("title".into());
         assert_eq!("title", storage.get_caption());
 

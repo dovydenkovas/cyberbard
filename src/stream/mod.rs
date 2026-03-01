@@ -26,6 +26,7 @@ use crate::stream::trackstream::TrackStream;
 use std::sync::Mutex;
 use std::time::Duration;
 use threadstream::ThreadStream;
+use std::fmt;
 
 lazy_static::lazy_static! {
 static ref OSTREAM: Mutex<rodio::OutputStream> =
@@ -45,20 +46,22 @@ impl Stream {
         }
     }
 
-    pub fn from_source(src: Box<dyn Opener + Send>, volume: f32) -> Stream {
+    pub fn from_source(src: Box<dyn Opener + Send>, volume: f32) -> Result<Stream, Box<dyn std::error::Error>> {
+        let mut lock = OSTREAM.lock().map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
         let pl = ThreadStream::new(
-            &mut OSTREAM.lock().unwrap(),
+            &mut lock,
             vec![TrackStream::new(src, volume)],
             1.0,
         )
-        .unwrap();
-        Stream {
+        .ok_or(StreamError{})?;
+        Ok(Stream {
             threads: vec![pl],
             total_volume: 0.0,
-        }
+        })
     }
 
     pub fn set_total_volume(&mut self, volume: f32) {
+        let volume = volume.clamp(0.0, 1.0);
         self.total_volume = volume;
         for pl in self.threads.iter_mut() {
             pl.update_volume(volume);
@@ -66,7 +69,9 @@ impl Stream {
     }
 
     pub fn set_partial_volume(&mut self, volume: f32, thread_index: usize, audio_index: usize) {
-        self.threads[thread_index].set_partial_volume(volume, audio_index);
+        if !self.threads.is_empty() {
+            self.threads[thread_index].set_partial_volume(volume, audio_index);
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -145,9 +150,26 @@ impl Stream {
     }
 
     pub fn goto_track(&mut self, thread: usize, track: usize) {
-        self.threads[thread].goto(track);
+        if !self.threads.is_empty() {
+            self.threads[thread].goto(track);
+        }
     }
 }
+
+
+#[derive(Debug)]
+struct StreamError {}
+
+impl fmt::Display for StreamError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Stream error")
+    }
+}
+
+impl std::error::Error for StreamError {
+
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -189,7 +211,6 @@ mod tests {
 
         assert!(stream.get_threads().is_empty());
     }
-
 
     #[test]
     #[ignore = "need a sample audio in the repository"]

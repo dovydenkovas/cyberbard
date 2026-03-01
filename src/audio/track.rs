@@ -67,10 +67,10 @@ impl RawAudio for Track {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn get_stream(&self) -> Stream {
-        let mut s = self.source.get_stream();
+    fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
+        let mut s = self.source.get_stream()?;
         s.set_partial_volume(self.volume, 0, 0);
-        s
+        Ok(s)
     }
 
     fn push_thread(&mut self, _caption: &str) -> Result<(), AudioError> {
@@ -138,6 +138,6 @@ mod tests {
         track.set_volume(1.2);
         assert_eq!(1.0, track.get_volume());
 
-        assert!(track.get_stream().is_empty());
+        assert!(track.get_stream().is_err());
     }
 }

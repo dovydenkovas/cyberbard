@@ -96,7 +96,7 @@ impl Application {
     pub fn player_set_audio(&mut self, audio: Audio) {
         self.current_playing.replace(Some(Rc::clone(&audio)));
         let s = audio.borrow().get_stream();
-        self.player.borrow_mut().set_stream(s);
+        self.player.borrow_mut().set_stream(s.unwrap());
         self.player
             .borrow_mut()
             .set_volume(audio.borrow().get_volume());
@@ -133,7 +133,7 @@ impl Application {
                 .unwrap()
                 .borrow()
                 .get_stream();
-            self.player.borrow_mut().sync(stream);
+            self.player.borrow_mut().sync(stream.unwrap());
         }
     }
 

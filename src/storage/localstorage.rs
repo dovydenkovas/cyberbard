@@ -108,21 +108,39 @@ pub fn load_local_sources(storage_path: &PathBuf) -> (Vec<super::source::Source>
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::{Storage, StorageCredentials};
+
     #[test]
-    #[ignore = "need a sample project in the repository"]
     fn storage_local_open() {
-        // Create, open, check sources and tags
+        let mut s = Storage::new();
+        s.setup_storage(StorageCredentials::Local("test/".into()));
+        assert_eq!("New storage", s.get_caption());
+        assert_eq!(1, s.len());
+        assert_eq!(vec![0], s.find("Metal".into()));
+        assert_eq!("test", s.get_tags(0)[0].get_text());
+        assert!(s.all_tags(0)[0].1);
     }
 
     #[test]
-    #[ignore = "need a sample project in the repository"]
     fn storage_local_tags() {
-        // attach, deattach, remove
+        let mut s = Storage::new();
+        s.setup_storage(StorageCredentials::Local("test/".into()));
+        s.add_tag();
+        let text = s.all_tags(0)[1].0.get_text();
+        assert!(!s.all_tags(0)[1].1);
+        s.rename_tag(text, "tag".into());
+        s.attach_tag(0, "tag".into());
+        s.remove_tag("test".into());
+        assert_eq!(vec![0], s.find("Metal".into()));
+        assert_eq!("tag", s.get_tags(0)[0].get_text());
+        assert!(s.all_tags(0)[0].1);
     }
 
     #[test]
-    #[ignore = "need a sample project in the repository"]
     fn storage_opener() {
-        // open test and open empty
+        let mut s = Storage::new();
+        s.setup_storage(StorageCredentials::Local("test/".into()));
+        s.get(0).unwrap().get_stream().unwrap().play();
+        s.get(0).unwrap().get_stream().unwrap().stop();
     }
 }
