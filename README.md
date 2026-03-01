@@ -4,14 +4,14 @@
 
 ## Description
 
-Cyberbard is a music player for table role play games and theater improvisations.
+Cyberbard is a music player for tabletop role-playing games and theatrical improvisations.
 
 Main features:
--[x] Support mp3, ogg, wav and flac music.
--[x] Add any tags for music.
--[x] Playlists.
--[x] A graphical map with locations. Each location could contain playlists and other locations.
--[x] Threading playlists. You can play music and effects at one time.
+- [x] Support mp3, ogg, wav and flac music.
+- [x] Add any tags for music.
+- [x] Playlists.
+- [x] A graphical map with locations. Each location could contain playlists and other locations.
+- [x] Threading playlists. You can play music and effects at one time.
 
 ## Installation
 ### Binary
