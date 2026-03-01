@@ -18,31 +18,184 @@ pub mod localstorage;
 pub mod source;
 pub mod tag;
 
+use std::path::{Path, PathBuf};
+
+use id3::TagLike;
+use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
+
 use source::Source;
-use std::path::PathBuf;
 use tag::Tag;
 
+use crate::{colors, storage::localstorage::load_local_sources};
+
+type TagIndexes = Vec<usize>;
+
+#[derive(Deserialize, Serialize)]
 pub enum StorageCredentials {
-    Local { path: PathBuf },
+    Local(PathBuf),
 }
 
-/// Storage trait describe interface to audio sources manipulation.
-#[typetag::serde(tag = "type")]
-pub trait Storage: erased_serde::Serialize {
-    fn get_caption(&self) -> String;
-    fn set_caption(&mut self, new_caption: String);
-    fn load_sources(&mut self);
-    fn setup_storage(&mut self, cred: StorageCredentials);
-    fn get(&self, index: usize) -> Option<Box<dyn Source>>;
-    fn get_tags(&self, index: usize) -> Vec<&Tag>;
-    fn all_tags(&self, index: usize) -> Vec<(Tag, bool)>;
-    fn len(&self) -> usize;
-    fn attach_tag(&mut self, index: usize, tag: String);
-    fn unattach_tag(&mut self, index: usize, tag: String);
-    fn rename_tag(&mut self, old_name: String, new_name: String);
-    fn remove_tag(&mut self, name: String);
-    fn add_tag(&mut self);
-    fn set_tag_color(&mut self, tag: String, color: String);
-    fn reverse_colors(&mut self);
-    fn find(&self, substr: String) -> Vec<usize>;
+struct LocalStorageCredentials {
+    path: PathBuf,
+}
+
+/// Storage of audio sources, that read audio files from local disk.
+/// Open stream from .mp3, .ogg and so on files.
+#[derive(Deserialize, Serialize)]
+pub struct Storage {
+    title: String,
+    credentials: Option<StorageCredentials>,
+    sources: Vec<Source>,
+    tags: Vec<Tag>,
+}
+
+impl Storage {
+    pub fn new() -> Storage {
+        let storage = Storage {
+            title: "New storage".into(),
+            credentials: None,
+            sources: vec![],
+            tags: vec![],
+        };
+        storage
+    }
+
+    pub fn get(&self, index: usize) -> Option<Source> {
+        self.sources.get(index).cloned()
+    }
+
+    pub fn len(&self) -> usize {
+        self.sources.len()
+    }
+
+    pub fn attach_tag(&mut self, source_index: usize, tag: String) {
+        if source_index >= self.sources.len() {
+            return;
+        }
+
+        if let Some(i) = self.tags.iter().position(|p: &Tag| p.get_text() == tag) {
+            self.sources[source_index].attach_tag(i);
+        } else {
+            let i = self.tags.len();
+            let tag = Tag::new(tag);
+            self.tags.push(tag);
+            self.sources[source_index].attach_tag(i);
+        }
+    }
+
+    pub fn get_caption(&self) -> String {
+        self.title.clone()
+    }
+
+    pub fn set_caption(&mut self, new_caption: String) {
+        self.title = new_caption
+    }
+
+    pub fn setup_storage(&mut self, cred: StorageCredentials) {
+        self.credentials = Some(cred);
+        (self.sources, self.tags) = match &self.credentials.as_ref().unwrap() {
+            StorageCredentials::Local(path_buf) => load_local_sources(&path_buf),
+        }
+    }
+
+    pub fn unattach_tag(&mut self, index: usize, tag: String) {
+        let tag_index = self.tags.iter().position(|t| t.get_text() == tag);
+
+        if let Some(i) = tag_index {
+            self.sources[index].unattach_tag(i);
+        }
+    }
+
+    pub fn rename_tag(&mut self, old_name: String, new_name: String) {
+        // Not allowed set empty name or existing name.
+        if new_name.trim().is_empty() || self.tags.iter().any(|t| t.get_text() == new_name) {
+            return;
+        }
+
+        for tag in &mut self.tags {
+            if tag.get_text() == old_name {
+                tag.set_text(new_name);
+                break;
+            }
+        }
+    }
+
+    pub fn remove_tag(&mut self, tag_text: String) {
+        if let Some(tag_index) = self.tags.iter().position(|t| t.get_text() == tag_text) {
+            for source in &mut self.sources {
+                source.remove_tag_and_shift_indexes(tag_index);
+            }
+        }
+        self.tags.retain(|t| t.get_text() != tag_text);
+    }
+
+    pub fn add_tag(&mut self) {
+        self.tags.push(Tag::random());
+    }
+
+    pub fn set_tag_color(&mut self, title: String, color: String) {
+        for tag in &mut self.tags {
+            if tag.get_text() == title {
+                tag.set_color(color);
+                break;
+            }
+        }
+    }
+
+    pub fn reverse_colors(&mut self) {
+        for tag in &mut self.tags {
+            let color = tag.get_color();
+            let color = colors::reverse_color(color);
+            tag.set_color(color);
+        }
+    }
+
+    pub fn find(&self, substr: String) -> Vec<usize> {
+        let pattern = substr.to_lowercase();
+        let mut matched = Vec::with_capacity(self.sources.len());
+        for i in 0..self.sources.len() {
+            let title = &self.sources[i].get_title();
+            if title.to_lowercase().contains(&pattern)
+                || self.sources[i]
+                    .tags()
+                    .iter()
+                    .any(|i| self.tags[*i].get_text().to_lowercase().contains(&pattern))
+            {
+                matched.push(i);
+            }
+        }
+        matched
+    }
+
+    pub fn get_tags(&self, index: usize) -> Vec<&Tag> {
+        if index >= self.sources.len() {
+            return vec![];
+        }
+
+        self.sources[index]
+            .tags()
+            .iter()
+            .filter_map(|&index| self.tags.get(index))
+            .collect()
+    }
+
+    pub fn all_tags(&self, source_index: usize) -> Vec<(Tag, bool)> {
+        let mut tags: Vec<(Tag, bool)> = self.tags.iter().map(|t| (t.clone(), false)).collect();
+
+        if source_index < self.sources.len() {
+            for i in self.sources[source_index].tags() {
+                tags[i].1 = true;
+            }
+        }
+
+        tags
+    }
+}
+
+fn is_music_file(filename: &str) -> bool {
+    let filename = filename.to_lowercase();
+    [".mp3", ".flac", ".wav", ".ogg"]
+        .iter()
+        .any(|x| filename.ends_with(x))
 }

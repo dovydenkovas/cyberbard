@@ -30,14 +30,14 @@ pub struct StorageWidget {
     caption: widgets::EditableHeader,
     search_pattern: String,
     shown_music: Vec<usize>,
-    storage: Rc<RefCell<Box<dyn Storage>>>,
+    storage: Rc<RefCell<Storage>>,
     edit_track_index: Option<usize>,
     application: Rc<RefCell<Application>>,
 }
 
 impl StorageWidget {
     pub fn new(
-        storage: Rc<RefCell<Box<dyn Storage>>>,
+        storage: Rc<RefCell<Storage>>,
         application: Rc<RefCell<Application>>,
     ) -> StorageWidget {
         let mut widget = StorageWidget {
@@ -64,7 +64,7 @@ impl StorageWidget {
 
         if let Some(path) = path {
             events.push_back(Event::SetupStorage {
-                credentials: StorageCredentials::Local { path },
+                credentials: StorageCredentials::Local ( path ),
             });
         }
     }

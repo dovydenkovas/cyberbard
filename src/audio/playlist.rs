@@ -60,11 +60,11 @@ impl RawAudio for Playlist {
         self.title = title;
     }
 
-    fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
+    fn get_source(&self) -> Result<Source, AudioError> {
         Err(AudioError::NotATrack)
     }
 
-    fn set_source(&mut self, _: Box<dyn Source>) {
+    fn set_source(&mut self, _: Source) {
         // Not implemented for playlist
     }
 

@@ -26,11 +26,11 @@ use crate::stream::Stream;
 pub struct Track {
     title: String,
     volume: f32,
-    source: Box<dyn Source>,
+    source: Source,
 }
 
 impl Track {
-    pub fn new(source: Box<dyn Source>) -> Track {
+    pub fn new(source: Source) -> Track {
         let title = source.get_title();
 
         Track {
@@ -51,11 +51,11 @@ impl RawAudio for Track {
         self.title = title
     }
 
-    fn get_source(&self) -> Result<Box<dyn Source>, AudioError> {
+    fn get_source(&self) -> Result<Source, AudioError> {
         Ok(self.source.clone())
     }
 
-    fn set_source(&mut self, source: Box<dyn Source>) {
+    fn set_source(&mut self, source: Source) {
         self.source = source;
     }
 

@@ -19,14 +19,14 @@ use std::{cell::RefCell, fs, io, path::PathBuf, rc::Rc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Scene, Player, Storage,
+    Player, Scene, Storage,
     audio::{Audio, AudioCell},
     storage::StorageCredentials,
 };
 
 #[derive(Serialize, Deserialize)]
 pub struct Application {
-    storage: Rc<RefCell<Box<dyn Storage>>>,
+    storage: Rc<RefCell<Storage>>,
     root_map: Rc<RefCell<Scene>>,
 
     #[serde(skip)]
@@ -39,7 +39,7 @@ pub struct Application {
 
 impl Application {
     pub fn new(
-        storage: Rc<RefCell<Box<dyn Storage>>>,
+        storage: Rc<RefCell<Storage>>,
         root_map: Rc<RefCell<Scene>>,
         player: Rc<RefCell<Player>>,
     ) -> Application {
@@ -52,7 +52,7 @@ impl Application {
         }
     }
 
-    pub fn get_storage(&self) -> Rc<RefCell<Box<dyn Storage>>> {
+    pub fn get_storage(&self) -> Rc<RefCell<Storage>> {
         Rc::clone(&self.storage)
     }
 
@@ -65,7 +65,7 @@ impl Application {
         credentials: StorageCredentials,
     ) -> Result<(), Box<dyn std::error::Error>> {
         match credentials {
-            StorageCredentials::Local { path } => self.open_local_project(path),
+            StorageCredentials::Local(path) => self.open_local_project(path),
         }
     }
 
@@ -157,7 +157,7 @@ impl Application {
                 if files.is_empty() {
                     self.storage
                         .borrow_mut()
-                        .setup_storage(StorageCredentials::Local { path });
+                        .setup_storage(StorageCredentials::Local(path));
                 } else {
                     let s = fs::read_to_string(&files[0]).unwrap();
                     match serde_yaml::from_str::<Application>(s.as_str()) {

@@ -33,8 +33,8 @@ pub type AudioCell = Rc<RefCell<Option<Audio>>>;
 pub trait RawAudio: erased_serde::Serialize {
     fn get_title(&self) -> String;
     fn set_title(&mut self, title: String);
-    fn get_source(&self) -> Result<Box<dyn Source>, AudioError>;
-    fn set_source(&mut self, source: Box<dyn Source>);
+    fn get_source(&self) -> Result<Source, AudioError>;
+    fn set_source(&mut self, source: Source);
     fn get_volume(&self) -> f32;
     fn set_volume(&mut self, volume: f32);
     fn get_stream(&self) -> Stream;

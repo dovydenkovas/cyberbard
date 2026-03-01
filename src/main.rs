@@ -24,21 +24,21 @@ use rust_i18n::{locale, set_locale};
 
 use crate::{
     application::Application,
-    scene::Scene,
     player::Player,
-    storage::{localstorage::LocalStorage, Storage},
+    scene::Scene,
+    storage::{Storage, StorageCredentials},
 };
 
 mod application;
 mod audio;
 mod colors;
 mod gui;
-mod scene;
 mod player;
+mod project;
+mod scene;
+mod settings;
 mod storage;
 mod stream;
-mod settings;
-mod project;
 
 /// Application entry point.
 /// Initialize all structures and start player and application threads.
@@ -51,10 +51,7 @@ fn main() {
     }
     set_locale(&settings.borrow().language);
 
-    // TODO: Allow startup without storage.
-    let storage: Rc<RefCell<Box<dyn Storage>>> = Rc::new(RefCell::new(Box::new(
-        LocalStorage::new("music".to_string()),
-    )));
+    let storage: Rc<RefCell<Storage>> = Rc::new(RefCell::new(Storage::new()));
     let map = Rc::new(RefCell::new(Scene::new(None)));
     let player = Rc::new(RefCell::new(Player::new()));
     let application = Application::new(storage, map, player);
