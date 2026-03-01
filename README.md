@@ -1,5 +1,7 @@
 # Cyberbard
 
+[![Build](https://github.com/dovydenkovas/cyberbard/actions/workflows/build.yml/badge.svg)](https://github.com/dovydenkovas/cyberbard/actions/workflows/build.yml)
+
 ## Description
 
 Cyberbard is a music player for table role play games and theater improvisations.
