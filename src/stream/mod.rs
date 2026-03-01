@@ -148,3 +148,84 @@ impl Stream {
         self.threads[thread].goto(track);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stream_empty() {
+        let mut stream = Stream::new(vec![], 1.0);
+
+        // Empty
+        // from_source(src: Box<dyn Opener + Send>, volume: f32)
+
+        assert_eq!(1.0, stream.total_volume);
+        stream.set_total_volume(0.6);
+        assert_eq!(0.6, stream.total_volume);
+        stream.set_total_volume(-0.2);
+        assert_eq!(0.0, stream.total_volume);
+        stream.set_total_volume(1.2);
+        assert_eq!(1.0, stream.total_volume);
+
+        stream.set_partial_volume(0.3, 0, 0);
+        assert_eq!(1.0, stream.total_volume);
+
+        assert!(stream.is_empty());
+        assert!(stream.get_current_playing().is_empty());
+
+        // Empty
+        // merge(&mut self, other: Stream)
+        // sync(&mut self, new: Stream)
+        // merge_parallel(&mut self, other: Stream)
+
+        stream.play();
+        stream.pause();
+        stream.stop();
+
+        assert_eq!(0.0, stream.get_position());
+        stream.update();
+        stream.goto_track(0, 0);
+
+        assert!(stream.get_threads().is_empty());
+    }
+
+
+    #[test]
+    #[ignore = "need a sample audio in the repository"]
+    fn stream() {
+        let mut stream = Stream::new(vec![], 1.0);
+
+        // Empty
+        // from_source(src: Box<dyn Opener + Send>, volume: f32)
+
+        assert_eq!(1.0, stream.total_volume);
+        stream.set_total_volume(0.6);
+        assert_eq!(0.6, stream.total_volume);
+        stream.set_total_volume(-0.2);
+        assert_eq!(0.0, stream.total_volume);
+        stream.set_total_volume(1.2);
+        assert_eq!(1.0, stream.total_volume);
+
+        stream.set_partial_volume(0.3, 0, 0);
+        assert_eq!(1.0, stream.total_volume);
+
+        assert!(stream.is_empty());
+        assert!(stream.get_current_playing().is_empty());
+
+        // Empty
+        // merge(&mut self, other: Stream)
+        // sync(&mut self, new: Stream)
+        // merge_parallel(&mut self, other: Stream)
+
+        stream.play();
+        stream.pause();
+        stream.stop();
+
+        assert_eq!(0.0, stream.get_position());
+        stream.update();
+        stream.goto_track(0, 0);
+
+        assert!(stream.get_threads().is_empty());
+    }
+}

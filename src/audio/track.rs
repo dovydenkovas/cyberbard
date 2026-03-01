@@ -113,3 +113,31 @@ impl RawAudio for Track {
         0
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn track() {
+        let source = Source::new("filename".into(), "title".into());
+        let mut track = Track::new(source);
+
+        assert_eq!("title", track.get_title());
+        track.set_title("title 2".into());
+        assert_eq!("title 2", track.get_title());
+
+        assert!(track.get_source().is_ok());
+
+        assert_eq!(1.0, track.get_volume());
+        track.set_volume(0.6);
+        assert_eq!(0.6, track.get_volume());
+        track.set_volume(-0.2);
+        assert_eq!(0.0, track.get_volume());
+        track.set_volume(1.2);
+        assert_eq!(1.0, track.get_volume());
+
+        assert!(track.get_stream().is_empty());
+    }
+}

@@ -52,3 +52,12 @@ impl Project {
     // other methods from application.rs
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "todo"]
+    fn project() {
+    }
+}

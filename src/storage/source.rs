@@ -72,3 +72,51 @@ impl Source {
         self.tags.binary_search(&tag_index).is_ok()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_empty_stream() {
+        let title = "Test track";
+        let source = Source::new("/tmp/test.mp3".into(), title.into());
+
+        assert_eq!(title, source.get_title());
+        assert!(source.get_stream().is_empty());
+    }
+
+    #[test]
+    fn source_create() {
+        let title = "Test track";
+        let mut source = Source::new("/tmp/test.mp3".into(), title.into());
+
+
+        for i in 0..11 {
+            source.attach_tag(i);
+        }
+
+        assert!(source.has_tag(0));
+        assert!(source.has_tag(1));
+        assert!(source.has_tag(6));
+        assert!(source.has_tag(3));
+        assert!(source.has_tag(10));
+        assert!(!source.has_tag(11));
+
+        assert_eq!(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], source.tags());
+        source.unattach_tag(0);
+        assert!(!source.has_tag(0));
+        source.unattach_tag(1);
+        assert!(!source.has_tag(1));
+        source.unattach_tag(6);
+        assert!(!source.has_tag(6));
+        source.unattach_tag(13);
+        assert!(!source.has_tag(13));
+        source.unattach_tag(8);
+        assert!(!source.has_tag(8));
+        assert_eq!(vec![2, 3, 4, 5, 7, 9, 10], source.tags());
+
+        source.remove_tag_and_shift_indexes(5);
+        assert_eq!(vec![2, 3, 4, 6, 8, 9], source.tags());
+    }
+}

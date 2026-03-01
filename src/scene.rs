@@ -153,3 +153,13 @@ impl Ord for Point {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "todo"]
+    fn scene() {
+    }
+}

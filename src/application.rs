@@ -215,3 +215,13 @@ fn restore_map(
         restore_map(&mut m, current.clone(), next);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "todo"]
+    fn application() {
+    }
+}

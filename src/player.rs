@@ -180,3 +180,13 @@ impl Default for Player {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "todo"]
+    fn player() {
+    }
+}

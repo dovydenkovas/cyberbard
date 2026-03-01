@@ -125,4 +125,21 @@ mod tests {
         tag.set_color("#abcdef".to_string());
         assert_eq!("#abcdef", tag.get_color());
     }
+
+    #[test]
+    fn tag_random() {
+        for _ in 0..10000 {
+            let mut tag = Tag::random();
+
+            // Check random text
+            let text = tag.get_text();
+            tag.set_text(text.clone());
+            assert_eq!(text, tag.get_text());
+
+            // Check random color
+            let text = tag.get_color();
+            tag.set_color(text.clone());
+            assert_eq!(text, tag.get_color());
+        }
+    }
 }

@@ -18,26 +18,18 @@ pub mod localstorage;
 pub mod source;
 pub mod tag;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use id3::TagLike;
 use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
 
 use source::Source;
 use tag::Tag;
 
 use crate::{colors, storage::localstorage::load_local_sources};
 
-type TagIndexes = Vec<usize>;
-
 #[derive(Deserialize, Serialize)]
 pub enum StorageCredentials {
     Local(PathBuf),
-}
-
-struct LocalStorageCredentials {
-    path: PathBuf,
 }
 
 /// Storage of audio sources, that read audio files from local disk.
@@ -198,4 +190,32 @@ fn is_music_file(filename: &str) -> bool {
     [".mp3", ".flac", ".wav", ".ogg"]
         .iter()
         .any(|x| filename.ends_with(x))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn storage_empty() {
+        let mut storage = Storage::new();
+
+        // Check all is empty
+        assert!(storage.all_tags(0).is_empty());
+        assert!(storage.get_tags(0).is_empty());
+        assert!(storage.find("substr".into()).is_empty());
+        assert!(storage.get(0).is_none());
+        assert_eq!(0, storage.len());
+
+        assert!(storage.get_caption().is_empty());
+        storage.set_caption("title".into());
+        assert_eq!("title", storage.get_caption());
+
+        // Check no crash
+        storage.reverse_colors();
+        storage.remove_tag("tag".into());
+        storage.rename_tag("tag1".into(), "tag2".into());
+        storage.set_tag_color("tag".into(), "#ffaaff".into());
+        storage.add_tag();
+    }
 }

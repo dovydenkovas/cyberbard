@@ -166,3 +166,57 @@ impl RawAudio for Playlist {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::RefCell, rc::Rc};
+
+    use super::*;
+
+    #[test]
+    fn track() {
+        let mut playlist = Playlist::new();
+
+        assert_eq!("title", playlist.get_title());
+        playlist.set_title("title 2".into());
+        assert_eq!("title 2", playlist.get_title());
+
+        assert!(playlist.get_source().is_err());
+
+        assert_eq!(1.0, playlist.get_volume());
+        playlist.set_volume(0.6);
+        assert_eq!(0.6, playlist.get_volume());
+        playlist.set_volume(-0.2);
+        assert_eq!(0.0, playlist.get_volume());
+        playlist.set_volume(1.2);
+        assert_eq!(1.0, playlist.get_volume());
+
+        assert!(playlist.get_stream().is_empty());
+
+        assert!(playlist.push_thread("tread".into()).is_ok());
+        assert!(playlist.push_thread("thread 1".into()).is_ok());
+        assert!(playlist.push_thread("thread 2".into()).is_ok());
+
+        playlist.rename_thread("tread".into(), "thread".into());
+        playlist.rename_thread("12".into(), "14".into());
+
+        playlist.remove_thread("tread 2".into());
+
+        assert_eq!(vec!["thread".to_string(), "thread 1".to_string()], playlist.threads().unwrap());
+
+        assert_eq!(1, playlist.index_of_thread("thread 1".into()));
+
+        assert!(playlist.is_thread_empty("thread 1".into()));
+
+        let audio = Playlist::new();
+        assert!(playlist.push_audio("asdfasd", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
+
+        let audio = Playlist::new();
+        assert!(playlist.push_audio("thread", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
+        assert!(!playlist.is_thread_empty("thread".into()));
+        assert_eq!(1, playlist.audio_count("thread"));
+
+        assert!(playlist.remove_audio("thread", 0).is_ok());
+        assert!(playlist.get_audio("thread 1", 0).is_err());
+    }
+}

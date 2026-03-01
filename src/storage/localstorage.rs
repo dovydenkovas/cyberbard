@@ -104,3 +104,25 @@ pub fn load_local_sources(storage_path: &PathBuf) -> (Vec<super::source::Source>
 
    (sources, tags)
 }
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[ignore = "need a sample project in the repository"]
+    fn storage_local_open() {
+        // Create, open, check sources and tags
+    }
+
+    #[test]
+    #[ignore = "need a sample project in the repository"]
+    fn storage_local_tags() {
+        // attach, deattach, remove
+    }
+
+    #[test]
+    #[ignore = "need a sample project in the repository"]
+    fn storage_opener() {
+        // open test and open empty
+    }
+}
