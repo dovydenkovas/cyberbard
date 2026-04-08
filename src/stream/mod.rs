@@ -23,10 +23,10 @@ pub trait Opener {
 }
 
 use crate::stream::trackstream::TrackStream;
+use std::fmt;
 use std::sync::Mutex;
 use std::time::Duration;
 use threadstream::ThreadStream;
-use std::fmt;
 
 lazy_static::lazy_static! {
 static ref OSTREAM: Mutex<rodio::OutputStream> =
@@ -46,14 +46,15 @@ impl Stream {
         }
     }
 
-    pub fn from_source(src: Box<dyn Opener + Send>, volume: f32) -> Result<Stream, Box<dyn std::error::Error>> {
-        let mut lock = OSTREAM.lock().map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
-        let pl = ThreadStream::new(
-            &mut lock,
-            vec![TrackStream::new(src, volume)],
-            1.0,
-        )
-        .ok_or(StreamError{})?;
+    pub fn from_source(
+        src: Box<dyn Opener + Send>,
+        volume: f32,
+    ) -> Result<Stream, Box<dyn std::error::Error>> {
+        let mut lock = OSTREAM
+            .lock()
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+        let pl = ThreadStream::new(&mut lock, vec![TrackStream::new(src, volume)], 1.0)
+            .ok_or(StreamError {})?;
         Ok(Stream {
             threads: vec![pl],
             total_volume: 0.0,
@@ -156,7 +157,6 @@ impl Stream {
     }
 }
 
-
 #[derive(Debug)]
 struct StreamError {}
 
@@ -166,21 +166,17 @@ impl fmt::Display for StreamError {
     }
 }
 
-impl std::error::Error for StreamError {
-
-}
-
+impl std::error::Error for StreamError {}
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::localstorage::LocalOpener;
+
     use super::*;
 
     #[test]
     fn stream_empty() {
         let mut stream = Stream::new(vec![], 1.0);
-
-        // Empty
-        // from_source(src: Box<dyn Opener + Send>, volume: f32)
 
         assert_eq!(1.0, stream.total_volume);
         stream.set_total_volume(0.6);
@@ -215,10 +211,11 @@ mod tests {
     #[test]
     #[ignore = "need a sample audio in the repository"]
     fn stream() {
-        let mut stream = Stream::new(vec![], 1.0);
-
-        // Empty
-        // from_source(src: Box<dyn Opener + Send>, volume: f32)
+        let mut stream = Stream::from_source(
+            Box::new(LocalOpener::new("test/Quick Metal Riff 1.mp3".to_string())),
+            1.0,
+        )
+        .unwrap();
 
         assert_eq!(1.0, stream.total_volume);
         stream.set_total_volume(0.6);

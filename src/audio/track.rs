@@ -114,7 +114,6 @@ impl RawAudio for Track {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,22 +121,44 @@ mod tests {
     #[test]
     fn track() {
         let source = Source::new("filename".into(), "title".into());
+        let track = Track::new(source);
+        assert!(track.get_source().is_ok());
+        assert!(track.get_stream().is_err());
+    }
+
+    #[test]
+    fn track_set_title() {
+        let source = Source::new("filename".into(), "title".into());
         let mut track = Track::new(source);
 
         assert_eq!("title", track.get_title());
-        track.set_title("title 2".into());
-        assert_eq!("title 2", track.get_title());
+        track.set_title("title modified".into());
+        assert_eq!("title modified", track.get_title());
 
         assert!(track.get_source().is_ok());
+    }
+
+    #[test]
+    fn track_set_volume_bounds() {
+        let source = Source::new("filename".into(), "title".into());
+        let mut track = Track::new(source);
 
         assert_eq!(1.0, track.get_volume());
-        track.set_volume(0.6);
-        assert_eq!(0.6, track.get_volume());
-        track.set_volume(-0.2);
+        track.set_volume(1.5);
+        assert_eq!(1.0, track.get_volume());
+        track.set_volume(-1.5);
         assert_eq!(0.0, track.get_volume());
-        track.set_volume(1.2);
+
+        // Test upper bound
+        track.set_volume(2.0);
         assert_eq!(1.0, track.get_volume());
 
-        assert!(track.get_stream().is_err());
+        // Test lower bound
+        track.set_volume(-1.0);
+        assert_eq!(0.0, track.get_volume());
+
+        // Test non-integer values
+        track.set_volume(0.75);
+        assert_eq!(0.75, track.get_volume());
     }
 }
