@@ -14,20 +14,22 @@
 //   You should have received a copy of the GNU General Public License
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use serde::{Deserialize, Serialize};
 
-use crate::audio::{Audio, AudioError, RawAudio};
-use crate::storage::source::Source;
+use crate::audio::{Audio, AudioCell, AudioError};
 use crate::stream::Stream;
 
 /// Playlist is container for other playlists and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
 /// Playlist implements Audio trait.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Playlist {
     volume: f32,
     title: String,
-    threads: Vec<(String, Vec<Audio>)>,
+    threads: Vec<(String, Vec<AudioCell>)>,
 }
 
 impl Playlist {
@@ -50,33 +52,24 @@ impl Playlist {
     }
 }
 
-#[typetag::serde]
-impl RawAudio for Playlist {
-    fn get_title(&self) -> String {
+impl Playlist {
+    pub fn get_title(&self) -> String {
         self.title.clone()
     }
 
-    fn set_title(&mut self, title: String) {
+    pub fn set_title(&mut self, title: String) {
         self.title = title;
     }
 
-    fn get_source(&self) -> Result<Source, AudioError> {
-        Err(AudioError::NotATrack)
-    }
-
-    fn set_source(&mut self, _: Source) {
-        // Not implemented for playlist
-    }
-
-    fn get_volume(&self) -> f32 {
+    pub fn get_volume(&self) -> f32 {
         self.volume
     }
 
-    fn set_volume(&mut self, volume: f32) {
+    pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
+    pub fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
         let mut stream = Stream::new(vec![], self.volume);
 
         for (_, pl) in self.threads.iter() {
@@ -89,18 +82,18 @@ impl RawAudio for Playlist {
         Ok(stream)
     }
 
-    fn push_thread(&mut self, caption: &str) -> Result<(), AudioError> {
+    pub fn push_thread(&mut self, caption: &str) -> Result<(), AudioError> {
         if !self.contains_thread(caption) {
             self.threads.push((caption.to_string(), Vec::new()));
         }
         Ok(())
     }
 
-    fn remove_thread(&mut self, caption: &str) {
+    pub fn remove_thread(&mut self, caption: &str) {
         self.threads.retain(|th| th.0 != caption);
     }
 
-    fn rename_thread(&mut self, old_caption: &str, new_caption: &str) {
+    pub fn rename_thread(&mut self, old_caption: &str, new_caption: &str) {
         if !self.contains_thread(new_caption) {
             for thread in self.threads.iter_mut() {
                 if thread.0 == old_caption {
@@ -110,29 +103,29 @@ impl RawAudio for Playlist {
         }
     }
 
-    fn threads(&self) -> Result<Vec<String>, AudioError> {
+    pub fn threads(&self) -> Result<Vec<String>, AudioError> {
         Ok(self.threads.iter().map(|k| k.0.clone()).collect())
     }
 
-    fn index_of_thread(&self, name: &str) -> usize {
+    pub fn index_of_thread(&self, name: &str) -> usize {
         self.find_thread(name).unwrap_or(0)
     }
 
-    fn is_thread_empty(&self, name: &str) -> bool {
+    pub fn is_thread_empty(&self, name: &str) -> bool {
         self.threads[self.find_thread(name).unwrap()].1.is_empty()
     }
 
-    fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError> {
+    pub fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError> {
         match self.find_thread(thread) {
             Some(i) => {
-                self.threads[i].1.push(audio);
+                self.threads[i].1.push(Rc::new(RefCell::new(audio)));
                 Ok(())
             }
             None => Err(AudioError::OutOfRange),
         }
     }
 
-    fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError> {
+    pub fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError> {
         match self.find_thread(thread) {
             Some(i) => {
                 self.threads[i].1.remove(index);
@@ -142,7 +135,7 @@ impl RawAudio for Playlist {
         }
     }
 
-    fn get_audio(&self, thread: &str, index: usize) -> Result<Audio, AudioError> {
+    pub fn get_audio(&self, thread: &str, index: usize) -> Result<AudioCell, AudioError> {
         if !self.contains_thread(thread) {
             return Err(AudioError::OutOfRange);
         }
@@ -159,7 +152,7 @@ impl RawAudio for Playlist {
         }
     }
 
-    fn audio_count(&self, thread: &str) -> usize {
+    pub fn audio_count(&self, thread: &str) -> usize {
         match self.find_thread(thread) {
             Some(i) => self.threads[i].1.len(),
             None => 0,
@@ -169,8 +162,6 @@ impl RawAudio for Playlist {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
-
     use super::*;
 
     #[test]
@@ -180,8 +171,6 @@ mod tests {
         assert_eq!("My cool playlist", playlist.get_title());
         playlist.set_title("title 2".into());
         assert_eq!("title 2", playlist.get_title());
-
-        assert!(playlist.get_source().is_err());
 
         assert_eq!(1.0, playlist.get_volume());
         playlist.set_volume(0.6);
@@ -203,19 +192,22 @@ mod tests {
         playlist.remove_thread("tread 1".into());
         playlist.remove_thread("thread 2".into());
 
-        assert_eq!(vec!["thread".to_string(), "thread 1".to_string()], playlist.threads().unwrap());
+        assert_eq!(
+            vec!["thread".to_string(), "thread 1".to_string()],
+            playlist.threads().unwrap()
+        );
 
         assert_eq!(1, playlist.index_of_thread("thread 1".into()));
 
         assert!(playlist.is_thread_empty("thread 1".into()));
 
-        let audio = Playlist::new();
-        assert!(playlist.push_audio("asdfasd", Rc::new(RefCell::new(Box::new(audio)))).is_err());
-        let audio = Playlist::new();
-        assert!(playlist.push_audio("thread 1", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
+        let audio = Audio::Playlist(Playlist::new());
+        assert!(playlist.push_audio("asdfasd", audio).is_err());
+        let audio = Audio::Playlist(Playlist::new());
+        assert!(playlist.push_audio("thread 1", audio).is_ok());
 
-        let audio = Playlist::new();
-        assert!(playlist.push_audio("thread", Rc::new(RefCell::new(Box::new(audio)))).is_ok());
+        let audio = Audio::Playlist(Playlist::new());
+        assert!(playlist.push_audio("thread", audio).is_ok());
         assert!(!playlist.is_thread_empty("thread".into()));
         assert_eq!(1, playlist.audio_count("thread"));
 

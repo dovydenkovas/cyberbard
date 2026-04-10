@@ -18,25 +18,25 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use crate::{
     application::Application,
-    audio::Audio,
+    audio::AudioCell,
     gui::events::{Event, Events},
-    scene::{Scene, Point},
+    scene::{Point, Scene},
 };
 use egui::{Label, Sense, Ui, UiBuilder, Vec2, load::SizedTexture, vec2};
 use rfd::FileDialog;
 
-pub struct MapWidget {
-    map: Rc<RefCell<Scene>>,
+pub struct SceneWidget {
+    scene: Rc<RefCell<Scene>>,
     is_root: bool,
     hide_map: bool,
     show_open_map_dialog: bool,
     application: Rc<RefCell<Application>>,
 }
 
-impl MapWidget {
-    pub fn new(map: Rc<RefCell<Scene>>, application: Rc<RefCell<Application>>) -> MapWidget {
-        MapWidget {
-            map,
+impl SceneWidget {
+    pub fn new(map: Rc<RefCell<Scene>>, application: Rc<RefCell<Application>>) -> SceneWidget {
+        SceneWidget {
+            scene: map,
             is_root: true,
             hide_map: false,
             show_open_map_dialog: false,
@@ -45,41 +45,41 @@ impl MapWidget {
     }
 
     fn goto_parent_map(&mut self) {
-        let map = self.map.borrow().get_parent();
+        let map = self.scene.borrow().get_parent();
         if let Some(map) = map {
-            self.map = map;
-            self.is_root = self.map.borrow().get_parent().is_none();
-            self.hide_map = self.map.borrow().get_background().is_none();
+            self.scene = map;
+            self.is_root = self.scene.borrow().get_parent().is_none();
+            self.hide_map = self.scene.borrow().get_background().is_none();
         }
     }
 
     fn goto_child_map(&mut self, point: Point) {
-        let map = self.map.borrow().get_map(&point);
+        let map = self.scene.borrow().get_map(&point);
         if let Some(map) = map {
-            self.map = map;
-            self.is_root = self.map.borrow().get_parent().is_none();
-            self.hide_map = self.map.borrow().get_background_path().is_none();
+            self.scene = map;
+            self.is_root = self.scene.borrow().get_parent().is_none();
+            self.hide_map = self.scene.borrow().get_background_path().is_none();
         }
     }
 
     fn remove_child_map(&mut self, point: Point) {
-        self.map.borrow_mut().erase_map(point);
+        self.scene.borrow_mut().erase_map(point);
     }
 
-    fn select_playlist(&self, audio: Audio, events: &mut Events) {
+    fn select_playlist(&self, audio: AudioCell, events: &mut Events) {
         events.push_back(Event::Play {
-            audio: Rc::clone(&audio),
+            audio: audio.clone(),
         });
         events.push_back(Event::Select { audio });
     }
 
     fn add_playlist(&mut self) {
-        let i = self.map.borrow().audio_count();
-        self.map.borrow_mut().push_new_audio();
-        let comp = self.map.borrow().get_audio(i);
+        let i = self.scene.borrow().audio_count();
+        self.scene.borrow_mut().push_new_audio();
+        let comp = self.scene.borrow().get_audio(i);
         self.application
             .borrow_mut()
-            .select_playlist(Some(comp));
+            .select_playlist(Rc::new(RefCell::new(comp)));
     }
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
@@ -133,13 +133,13 @@ impl MapWidget {
                         ui.vertical_centered_justified(|ui| {
                             ui.add_space(20.0);
                             let mut remove_after_render = None;
-                            for i in 0..self.map.borrow().audio_count() {
-                                if let Some(c) = comp.borrow().as_ref()
-                                    && Rc::ptr_eq(&self.map.borrow().get_audio(i), c)
+                            for i in 0..self.scene.borrow().audio_count() {
+                                if let Some(c) = comp.as_ref()
+                                    && self.scene.borrow().get_audio(i) == *c.borrow()
                                 {
                                     self.render_playlist(
                                         ui,
-                                        &self.map,
+                                        &self.scene,
                                         i,
                                         events,
                                         &mut remove_after_render,
@@ -148,7 +148,7 @@ impl MapWidget {
                                 } else {
                                     self.render_playlist(
                                         ui,
-                                        &self.map,
+                                        &self.scene,
                                         i,
                                         events,
                                         &mut remove_after_render,
@@ -158,7 +158,7 @@ impl MapWidget {
                             }
 
                             if let Some(index) = remove_after_render {
-                                self.map.borrow_mut().erase_audio(index);
+                                self.scene.borrow_mut().erase_audio(index);
                             }
                         });
 
@@ -181,7 +181,7 @@ impl MapWidget {
     }
 
     fn reset_selection(&mut self) {
-        self.application.borrow_mut().select_playlist(None);
+        self.application.borrow_mut().reset_playlist();
     }
 
     fn render_playlist(
@@ -194,7 +194,7 @@ impl MapWidget {
         is_selected: bool,
     ) {
         let audio = map.borrow().get_audio(index);
-        let title = audio.borrow().get_title();
+        let title = audio.get_title();
 
         let bg_color = if is_selected {
             ui.visuals().disable(ui.visuals().selection.bg_fill)
@@ -209,7 +209,7 @@ impl MapWidget {
 
         let response = ui.add(btn);
         if response.clicked() {
-            self.select_playlist(audio, events);
+            self.select_playlist(Rc::new(RefCell::new(audio)), events);
         }
         if response.secondary_clicked() {
             remove_after_render.replace(index);
@@ -237,15 +237,15 @@ impl MapWidget {
             let mut map_removed = false;
             ui.horizontal(|ui| {
                 ui.add_space(5.0);
-                if self.map.borrow().get_background().is_some() && ui.button("🗙").clicked() {
-                    self.map.borrow_mut().remove_background();
+                if self.scene.borrow().get_background().is_some() && ui.button("🗙").clicked() {
+                    self.scene.borrow_mut().remove_background();
                     map_removed = true;
                 }
                 self.reneder_tools_panel(ctx, ui, events);
             });
 
-            if self.map.borrow().get_background().is_none() {
-                let path = self.map.borrow().get_background_path();
+            if self.scene.borrow().get_background().is_none() {
+                let path = self.scene.borrow().get_background_path();
                 if let Some(path) = path {
                     self.try_load_background(ctx, path);
                 }
@@ -265,10 +265,10 @@ impl MapWidget {
     }
 
     fn render_map(&mut self, _ctx: &egui::Context, ui: &mut Ui) {
-        assert!(self.map.borrow().get_background().is_some());
+        assert!(self.scene.borrow().get_background().is_some());
         let child_radius = 0.05;
 
-        let image = &self.map.borrow().get_background().unwrap();
+        let image = &self.scene.borrow().get_background().unwrap();
 
         let available_size = ui.available_size();
         let (w, h) = (image.size()[0] as f32, image.size()[1] as f32);
@@ -291,15 +291,15 @@ impl MapWidget {
         {
             let x = (pos.x - o.x - 0.5 * child_radius * w) / w + 0.5;
             let y = (pos.y - o.y - 0.5 * child_radius * w) / h + 0.5;
-            let parent = Rc::new(RefCell::new(Scene::new(Some(Rc::clone(&self.map)))));
-            self.map.borrow_mut().insert_map(Point { x, y }, parent);
+            let parent = Rc::new(RefCell::new(Scene::new(Some(Rc::clone(&self.scene)))));
+            self.scene.borrow_mut().insert_map(Point { x, y }, parent);
         }
 
         // Render childs
         // TODO: control childs color (logo?) and size
         let mut clicked = None;
         let mut removed = None;
-        for child in self.map.borrow().iter_maps() {
+        for child in self.scene.borrow().iter_maps() {
             let button_rect = egui::Rect::from_min_size(
                 egui::pos2(o.x + (child.x - 0.5) * w, o.y + (child.y - 0.5) * h),
                 vec2(child_radius * w, child_radius * w),
@@ -350,7 +350,7 @@ impl MapWidget {
                 image_data,
                 Default::default(),
             );
-            self.map.borrow_mut().set_background(path, handle);
+            self.scene.borrow_mut().set_background(path, handle);
         }
     }
 }

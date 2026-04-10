@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use crate::audio::AudioCell;
 use crate::stream::Stream;
 
 enum Command {
@@ -39,7 +40,8 @@ pub struct Player {
     cmd_tx: Sender<Command>,
     paused: bool,
     progress: Arc<Mutex<f32>>,
-    current_playing: Arc<Mutex<Vec<usize>>>
+    current_playing: Arc<Mutex<Vec<usize>>>,
+    audio: Option<AudioCell>,
 }
 
 impl Player {
@@ -92,9 +94,7 @@ impl Player {
                             Ok(Command::SetTrackVolume(v, p, i)) => {
                                 stream.set_partial_volume(v, p, i)
                             }
-                            Ok(Command::GotoTrack(p, i)) => {
-                                stream.goto_track(p, i)
-                            }
+                            Ok(Command::GotoTrack(p, i)) => stream.goto_track(p, i),
 
                             Err(mpsc::TryRecvError::Empty) => {
                                 *total_progress.lock().unwrap() = stream.get_position();
@@ -115,12 +115,27 @@ impl Player {
             cmd_tx,
             paused: true,
             progress,
-            current_playing
+            current_playing,
+            audio: None,
         }
     }
 
-    pub fn set_stream(&mut self, stream: Stream) {
-        let _ = self.cmd_tx.send(Command::SetStream(stream));
+    pub fn set_audio(&mut self, audio: Option<AudioCell>) {
+        self.audio = audio;
+        if let Some(a) = self.audio.as_ref()
+            && let Ok(s) = a.borrow().get_stream()
+        {
+            let _ = self.cmd_tx.send(Command::SetStream(s));
+        }
+        self.set_volume(if let Some(a) = self.audio.as_ref() {
+            a.borrow().get_volume()
+        } else {
+            1.0
+        });
+    }
+
+    pub fn has_audio(&self) -> bool {
+        self.audio.is_some()
     }
 
     pub fn sync(&mut self, stream: Stream) {
@@ -163,15 +178,18 @@ impl Player {
         let _ = self
             .cmd_tx
             .send(Command::SetTrackVolume(volume, thread_index, index));
-
     }
 
     pub fn goto_track(&mut self, thread_index: usize, index: usize) {
         let _ = self.cmd_tx.send(Command::GotoTrack(thread_index, index));
     }
 
-    pub fn get_current_playing(&self) -> Vec<usize> {
+    pub fn get_current_playing_indexes(&self) -> Vec<usize> {
         self.current_playing.lock().unwrap().clone()
+    }
+
+    pub fn get_current_playing(&self) -> Option<AudioCell> {
+        self.audio.clone()
     }
 }
 
@@ -187,6 +205,5 @@ mod tests {
 
     #[test]
     #[ignore = "todo"]
-    fn player() {
-    }
+    fn player() {}
 }

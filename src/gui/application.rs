@@ -28,9 +28,9 @@ use crate::colors;
 use crate::gui::events::Event;
 use crate::settings::Settings;
 
-use super::playlist::PlaylistWidget;
-use super::scene::MapWidget;
 use super::player::PlayerWidget;
+use super::playlist::PlaylistWidget;
+use super::scene::SceneWidget;
 use super::storage::StorageWidget;
 
 /// Describe Cyberbard main window.
@@ -39,7 +39,7 @@ pub struct ApplicationImp {
     application: Rc<RefCell<Application>>,
     events: VecDeque<Event>,
     storage_widget: StorageWidget,
-    map_widget: MapWidget,
+    map_widget: SceneWidget,
     player_widget: PlayerWidget,
     playlist_widget: PlaylistWidget,
     settings: Rc<RefCell<Settings>>,
@@ -57,7 +57,7 @@ impl ApplicationImp {
             application: Rc::clone(&application),
             events: VecDeque::new(),
             storage_widget: StorageWidget::new(storage, Rc::clone(&application)),
-            map_widget: MapWidget::new(map, Rc::clone(&application)),
+            map_widget: SceneWidget::new(map, Rc::clone(&application)),
             player_widget: PlayerWidget::new(player),
             playlist_widget: PlaylistWidget::new(Rc::clone(&application)),
             settings,
@@ -77,31 +77,25 @@ impl ApplicationImp {
                         let player = self.application.borrow().get_player();
                         self.storage_widget =
                             StorageWidget::new(storage, Rc::clone(&self.application));
-                        self.map_widget = MapWidget::new(map, Rc::clone(&self.application));
+                        self.map_widget = SceneWidget::new(map, Rc::clone(&self.application));
                         self.player_widget = PlayerWidget::new(player);
-                        self.playlist_widget =
-                            PlaylistWidget::new(Rc::clone(&self.application));
+                        self.playlist_widget = PlaylistWidget::new(Rc::clone(&self.application));
                     }
                 }
                 Event::Play { audio } => {
-                    self.player_widget.play(&audio);
-                    self.application.borrow_mut().player_set_audio(audio);
+                    self.player_widget.play(audio.clone());
+                    self.application.borrow_mut().player_set_audio(Some(audio));
                     self.application.borrow_mut().player_play();
                 }
                 Event::AddAudioToPlaylist { audio } => {
-                    self.playlist_widget.insert_audio(Rc::clone(&audio));
+                    self.playlist_widget.insert_audio(audio.clone());
                     self.application.borrow_mut().player_sync();
                 }
                 Event::PlayerSync => {
-                    self.application.borrow_mut().player_sync();
-                    if let Some(playing) = self
-                        .application
-                        .borrow()
-                        .get_current_playing()
-                        .borrow()
-                        .as_ref()
-                    {
-                        self.player_widget.play(playing);
+                    let pl = self.application.borrow().get_current_playing();
+                    if let Some(pl) = pl {
+                        self.application.borrow_mut().player_sync();
+                        self.player_widget.play(pl);
                     }
                 }
                 Event::PlayerSetVolume { volume } => {
@@ -118,9 +112,7 @@ impl ApplicationImp {
                 ),
 
                 Event::Select { audio } => {
-                    self.application
-                        .borrow_mut()
-                        .select_playlist(Some(audio));
+                    self.application.borrow_mut().select_playlist(audio);
                     self.playlist_widget.sync_with_application();
                 }
                 Event::SaveProject { path } => {

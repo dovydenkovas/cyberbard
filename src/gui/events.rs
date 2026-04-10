@@ -16,7 +16,10 @@
 
 use std::{collections::VecDeque, path::PathBuf};
 
-use crate::{audio::Audio, storage::StorageCredentials};
+use crate::{
+    audio::{Audio, AudioCell},
+    storage::StorageCredentials,
+};
 
 pub type Events = VecDeque<Event>;
 
@@ -28,7 +31,7 @@ pub enum Event {
         path: PathBuf,
     },
     Play {
-        audio: Audio,
+        audio: AudioCell,
     },
     AddAudioToPlaylist {
         audio: Audio,
@@ -43,7 +46,7 @@ pub enum Event {
         index: usize,
     },
     Select {
-        audio: Audio,
+        audio: AudioCell,
     },
-    ToggleTheme
+    ToggleTheme,
 }

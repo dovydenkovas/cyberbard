@@ -20,7 +20,7 @@ use egui::{Color32, Label, RichText, Sense, Slider, TextEdit, Ui, UiBuilder};
 
 use crate::{
     application::Application,
-    audio::Audio,
+    audio::{Audio, playlist::Playlist},
     gui::events::{Event, Events},
 };
 
@@ -38,42 +38,32 @@ impl PlaylistWidget {
     }
 
     pub fn sync_with_application(&mut self) {
-        if self
-            .application
-            .borrow()
-            .get_selected_playlist()
-            .borrow_mut()
-            .as_ref().is_some()
-        {
+        if self.application.borrow().get_selected_playlist().is_some() {
             self.current_thread = None;
         }
     }
 
     pub fn insert_audio(&mut self, audio: Audio) {
-        if let Some(playlist) = self
-            .application
-            .borrow()
-            .get_selected_playlist()
-            .borrow_mut()
-            .as_ref()
+        if let Some(playlist) = self.application.borrow().get_selected_playlist()
+            && let Audio::Playlist(ref mut playlist) = *playlist.borrow_mut()
         {
             let thread = if let Some(thread) = &self.current_thread {
                 thread.clone()
-            } else if let Some(thread) = playlist.borrow().threads().unwrap().first() {
+            } else if let Some(thread) = playlist.threads().unwrap().first() {
                 thread.clone()
             } else {
                 let thread = generate_thread_name(Vec::new());
-                playlist.borrow_mut().push_thread(&thread).unwrap();
+                playlist.push_thread(&thread).unwrap();
                 thread
             };
 
-            playlist.borrow_mut().push_audio(&thread, audio).unwrap();
+            playlist.push_audio(&thread, audio).unwrap();
         }
     }
 
     pub fn update(&mut self, _ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
         let comp = self.application.borrow().get_selected_playlist();
-        if let Some(playlist) = comp.borrow_mut().as_ref() {
+        if let Some(playlist) = comp {
             let builder = UiBuilder::new().sense(Sense::click());
             if ui
                 .scope_builder(builder, |ui| {
@@ -93,7 +83,7 @@ impl PlaylistWidget {
                                     .changed()
                                 {
                                     playlist.borrow_mut().set_title(title);
-                                    sync_with_player(events, playlist);
+                                    sync_with_player(events);
                                 }
                             });
 
@@ -113,62 +103,70 @@ impl PlaylistWidget {
                                             .changed()
                                         {
                                             playlist.borrow_mut().set_volume(total_volume);
-                                            sync_with_player(events, playlist);
+                                            sync_with_player(events);
                                         }
                                     },
                                 );
                             });
                             ui.add_space(25.0);
-                            let threads = playlist.borrow().threads().unwrap();
 
-                            let current_playing =
-                                if self.application.borrow().is_playing(playlist) {
-                                    Some(
-                                        self.application
-                                            .borrow()
-                                            .get_player()
-                                            .borrow()
-                                            .get_current_playing(),
-                                    )
-                                } else {
-                                    None
-                                };
+                            let current_playing = if self
+                                .application
+                                .borrow()
+                                .is_playing(Some(Rc::clone(&playlist)))
+                            {
+                                Some(
+                                    self.application
+                                        .borrow()
+                                        .get_player()
+                                        .borrow()
+                                        .get_current_playing_indexes(),
+                                )
+                            } else {
+                                None
+                            };
 
-                            for mut thread in threads {
-                                let mut remove_elements = vec![];
-                                let index = playlist.borrow().index_of_thread(&thread);
+                            let mut guard = playlist.borrow_mut();
+                            if let Audio::Playlist(ref mut playlist) = *guard {
+                                let threads = playlist.threads().unwrap();
 
-                                self.render_thread(
-                                    ui,
-                                    events,
-                                    &mut remove_elements,
-                                    &mut thread,
-                                    playlist,
-                                    current_playing.as_ref().unwrap_or(&vec![]).get(index),
-                                );
+                                for mut thread in threads {
+                                    let mut remove_elements = vec![];
+                                    let index = playlist.index_of_thread(&thread);
 
-                                for element in remove_elements {
-                                    let _ = playlist.borrow_mut().remove_audio(&thread, element);
-                                    sync_with_player(events, playlist);
-                                    if playlist.borrow().is_thread_empty(&thread) {
-                                        playlist.borrow_mut().remove_thread(&thread);
-                                    }
-                                }
-                            }
-
-                            ui.vertical_centered(|ui| {
-                                let threads = playlist.borrow().threads().unwrap();
-                                let last_thread: Option<&String> = threads.last();
-                                if ui.button("+").clicked()
-                                && (last_thread.is_none() || !playlist.borrow().is_thread_empty(last_thread.unwrap())) {
-                                    let thread = generate_thread_name(
-                                        playlist.borrow().threads().unwrap(),
+                                    self.render_thread(
+                                        ui,
+                                        events,
+                                        &mut remove_elements,
+                                        &mut thread,
+                                        playlist,
+                                        current_playing.as_ref().unwrap_or(&vec![]).get(index),
                                     );
 
-                                    playlist.borrow_mut().push_thread(&thread).unwrap();
-                                    self.current_thread = Some(thread);
+                                    for element in remove_elements {
+                                        let _ = playlist.remove_audio(&thread, element);
+                                        sync_with_player(events);
+                                        if playlist.is_thread_empty(&thread) {
+                                            playlist.remove_thread(&thread);
+                                        }
+                                    }
                                 }
-                            });
+
+                                ui.vertical_centered(|ui| {
+                                    let threads = playlist.threads().unwrap();
+                                    let last_thread: Option<&String> = threads.last();
+                                    if ui.button("+").clicked()
+                                        && (last_thread.is_none()
+                                            || !playlist.is_thread_empty(last_thread.unwrap()))
+                                    {
+                                        let thread =
+                                            generate_thread_name(playlist.threads().unwrap());
+
+                                        playlist.push_thread(&thread).unwrap();
+                                        self.current_thread = Some(thread);
+                                    }
+                                });
+                            }
                         });
                 })
                 .response
@@ -185,7 +183,7 @@ impl PlaylistWidget {
         events: &mut Events,
         remove_elements: &mut Vec<usize>,
         thread: &mut String,
-        playlist: &Audio,
+        playlist: &mut Playlist,
         current_playing: Option<&usize>,
     ) {
         let mut title = thread.clone();
@@ -210,7 +208,7 @@ impl PlaylistWidget {
                         .background_color(Color32::TRANSPARENT),
                 );
                 if title_edit.changed() {
-                    playlist.borrow_mut().rename_thread(thread, &title);
+                    playlist.rename_thread(thread, &title);
                     *thread = title;
                 }
 
@@ -219,16 +217,16 @@ impl PlaylistWidget {
                 }
 
                 if ui.label("🗙").clicked() {
-                    playlist.borrow_mut().remove_thread(thread);
+                    playlist.remove_thread(thread);
                 }
             });
 
             ui.add_space(5.0);
-            let n = playlist.borrow().audio_count(thread);
+            let n = playlist.audio_count(thread);
 
             for i in 0..n {
                 // TODO: set labels clickable to select a track in the thread.
-                let audio: Audio = playlist.borrow().get_audio(thread, i).unwrap();
+                let audio = playlist.get_audio(thread, i).unwrap();
 
                 ui.horizontal(|ui| {
                     let text = if current_playing.is_some() && &i == current_playing.unwrap() {
@@ -237,14 +235,12 @@ impl PlaylistWidget {
                         RichText::new(audio.borrow().get_title())
                     };
 
-                    if ui.label(text).clicked()
-                        && self.application.borrow().is_playing(playlist)
-                    {
+                    if ui.label(text).clicked() && current_playing.is_some() {
                         self.application
                             .borrow_mut()
                             .get_player()
                             .borrow_mut()
-                            .goto_track(playlist.borrow().index_of_thread(thread), i);
+                            .goto_track(playlist.index_of_thread(thread), i);
                     };
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -265,7 +261,6 @@ impl PlaylistWidget {
                             events.push_back(Event::PlayerSetTrackVolume {
                                 volume,
                                 playlist_index: playlist
-                                    .borrow()
                                     .threads()
                                     .unwrap()
                                     .iter()
@@ -283,10 +278,7 @@ impl PlaylistWidget {
     }
 }
 
-fn sync_with_player(
-    events: &mut std::collections::VecDeque<super::events::Event>,
-    _playlist: &Audio,
-) {
+fn sync_with_player(events: &mut std::collections::VecDeque<super::events::Event>) {
     events.push_back(super::events::Event::PlayerSync);
 }
 

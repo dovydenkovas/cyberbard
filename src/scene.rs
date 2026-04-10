@@ -15,7 +15,11 @@
 //   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
 use std::{
-    cell::RefCell, cmp::Ordering, collections::{btree_map, BTreeMap}, path::PathBuf, rc::Rc
+    cell::RefCell,
+    cmp::Ordering,
+    collections::{BTreeMap, btree_map},
+    path::PathBuf,
+    rc::Rc,
 };
 
 use egui::TextureHandle;
@@ -98,7 +102,7 @@ impl Scene {
     }
 
     pub fn push_new_audio(&mut self) {
-        let audio: Audio = Rc::new(RefCell::new(Box::new(Playlist::new())));
+        let audio: Audio = Audio::Playlist(Playlist::new());
         self.audio.push(audio);
     }
 
@@ -107,7 +111,7 @@ impl Scene {
     }
 
     pub fn get_audio(&self, index: usize) -> Audio {
-        Rc::clone(&self.audio[index])
+        self.audio[index].clone()
     }
 
     pub fn audio_count(&self) -> usize {
@@ -125,7 +129,7 @@ impl Eq for Point {}
 
 impl PartialOrd for Point {
     fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
-       Some(self.cmp(other))
+        Some(self.cmp(other))
     }
 }
 
@@ -160,6 +164,5 @@ mod tests {
 
     #[test]
     #[ignore = "todo"]
-    fn scene() {
-    }
+    fn scene() {}
 }

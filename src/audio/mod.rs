@@ -18,39 +18,59 @@ pub mod playlist;
 pub mod track;
 
 use std::cell::RefCell;
+use std::error::Error;
 use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::source::Source;
+use crate::audio::playlist::Playlist;
+use crate::audio::track::Track;
 use crate::stream::Stream;
 
-pub type Audio = Rc<RefCell<Box<dyn RawAudio>>>;
-pub type AudioCell = Rc<RefCell<Option<Audio>>>;
-
-/// Audio trait. Describe Track and Playlist interface.
-#[typetag::serde(tag = "type")]
-pub trait RawAudio: erased_serde::Serialize {
-    fn get_title(&self) -> String;
-    fn set_title(&mut self, title: String);
-    fn get_source(&self) -> Result<Source, AudioError>;
-    fn set_source(&mut self, source: Source);
-    fn get_volume(&self) -> f32;
-    fn set_volume(&mut self, volume: f32);
-    fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>>;
-
-    fn push_thread(&mut self, caption: &str) -> Result<(), AudioError>;
-    fn rename_thread(&mut self, old_caption: &str, new_caption: &str);
-    fn remove_thread(&mut self, caption: &str);
-    fn threads(&self) -> Result<Vec<String>, AudioError>;
-    fn index_of_thread(&self, name: &str) -> usize;
-    fn is_thread_empty(&self, name: &str) -> bool;
-
-    fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError>;
-    fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError>;
-    fn get_audio(&self, thread: &str, index: usize) -> Result<Audio, AudioError>;
-    fn audio_count(&self, thread: &str) -> usize;
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+pub enum Audio {
+    Track(Track),
+    Playlist(Playlist),
 }
+
+impl Audio {
+    pub fn get_stream(&self) -> Result<Stream, Box<dyn Error>> {
+        match self {
+            Audio::Track(t) => Ok(t.get_stream()?),
+            Audio::Playlist(p) => Ok(p.get_stream()?),
+        }
+    }
+
+    pub fn get_volume(&self) -> f32 {
+        match self {
+            Audio::Track(t) => t.get_volume(),
+            Audio::Playlist(p) => p.get_volume(),
+        }
+    }
+
+    pub fn set_volume(&mut self, v: f32) {
+        match self {
+            Audio::Track(t) => t.set_volume(v),
+            Audio::Playlist(p) => p.set_volume(v),
+        }
+    }
+
+    pub fn get_title(&self) -> String {
+        match self {
+            Audio::Track(t) => t.get_title(),
+            Audio::Playlist(p) => p.get_title(),
+        }
+    }
+
+    pub fn set_title(&mut self, title: String) {
+        match self {
+            Audio::Track(t) => t.set_title(title),
+            Audio::Playlist(p) => p.set_title(title),
+        }
+    }
+}
+
+pub type AudioCell = Rc<RefCell<Audio>>;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum AudioError {

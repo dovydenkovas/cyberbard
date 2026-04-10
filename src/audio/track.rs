@@ -16,13 +16,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::audio::{Audio, AudioError, RawAudio};
 use crate::storage::source::Source;
 use crate::stream::Stream;
 
 /// Track is container one Stream and it's settings.
 /// Track implements Audio trait.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Track {
     title: String,
     volume: f32,
@@ -41,76 +40,27 @@ impl Track {
     }
 }
 
-#[typetag::serde]
-impl RawAudio for Track {
-    fn get_title(&self) -> String {
+impl Track {
+    pub fn get_title(&self) -> String {
         self.title.clone()
     }
 
-    fn set_title(&mut self, title: String) {
+    pub fn set_title(&mut self, title: String) {
         self.title = title
     }
 
-    fn get_source(&self) -> Result<Source, AudioError> {
-        Ok(self.source.clone())
-    }
-
-    fn set_source(&mut self, source: Source) {
-        self.source = source;
-    }
-
-    fn get_volume(&self) -> f32 {
+    pub fn get_volume(&self) -> f32 {
         self.volume
     }
 
-    fn set_volume(&mut self, volume: f32) {
+    pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
+    pub fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
         let mut s = self.source.get_stream()?;
         s.set_partial_volume(self.volume, 0, 0);
         Ok(s)
-    }
-
-    fn push_thread(&mut self, _caption: &str) -> Result<(), AudioError> {
-        Err(AudioError::NotAPlaylist)
-    }
-
-    fn rename_thread(&mut self, _old_caption: &str, _new_caption: &str) {
-        // Not implemented for track
-    }
-
-    fn remove_thread(&mut self, _caption: &str) {
-        // Not implemented for track
-    }
-
-    fn threads(&self) -> Result<Vec<String>, AudioError> {
-        Err(AudioError::NotAPlaylist)
-    }
-
-    fn index_of_thread(&self, _name: &str) -> usize {
-        0
-    }
-
-    fn is_thread_empty(&self, _name: &str) -> bool {
-        true
-    }
-
-    fn push_audio(&mut self, _thread: &str, _audio: Audio) -> Result<(), AudioError> {
-        Err(AudioError::NotAPlaylist)
-    }
-
-    fn remove_audio(&mut self, _thread: &str, _index: usize) -> Result<(), AudioError> {
-        Err(AudioError::NotAPlaylist)
-    }
-
-    fn get_audio(&self, _thread: &str, _index: usize) -> Result<Audio, AudioError> {
-        Err(AudioError::NotAPlaylist)
-    }
-
-    fn audio_count(&self, _thread: &str) -> usize {
-        0
     }
 }
 
@@ -122,7 +72,6 @@ mod tests {
     fn track() {
         let source = Source::new("filename".into(), "title".into());
         let track = Track::new(source);
-        assert!(track.get_source().is_ok());
         assert!(track.get_stream().is_err());
     }
 
@@ -134,8 +83,6 @@ mod tests {
         assert_eq!("title", track.get_title());
         track.set_title("title modified".into());
         assert_eq!("title modified", track.get_title());
-
-        assert!(track.get_source().is_ok());
     }
 
     #[test]

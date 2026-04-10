@@ -19,7 +19,7 @@ use std::{cell::RefCell, rc::Rc, time::Duration};
 use egui::Ui;
 
 use crate::{
-    audio::Audio,
+    audio::AudioCell,
     gui::events::{Event, Events},
     player::Player,
 };
@@ -51,7 +51,7 @@ impl PlayerWidget {
         self.player.borrow_mut().stop();
     }
 
-    pub fn play(&mut self, audio: &Audio) {
+    pub fn play(&mut self, audio: AudioCell) {
         self.title = audio.borrow().get_title();
         self.volume = audio.borrow().get_volume();
         self.player.borrow_mut().play();

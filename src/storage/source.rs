@@ -18,7 +18,7 @@ use crate::{storage::localstorage::LocalOpener, stream::Stream};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Source {
     filename: String,
     title: String,
@@ -90,7 +90,6 @@ mod tests {
     fn source_create() {
         let title = "Test track";
         let mut source = Source::new("/tmp/test.mp3".into(), title.into());
-
 
         for i in 0..11 {
             source.attach_tag(i);

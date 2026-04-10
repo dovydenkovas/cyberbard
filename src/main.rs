@@ -22,12 +22,7 @@ i18n!("locales");
 
 use rust_i18n::{locale, set_locale};
 
-use crate::{
-    application::Application,
-    player::Player,
-    scene::Scene,
-    storage::{Storage, StorageCredentials},
-};
+use crate::{application::Application, player::Player, scene::Scene, storage::Storage};
 
 mod application;
 mod audio;

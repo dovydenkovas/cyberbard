@@ -44,13 +44,12 @@ pub struct Storage {
 
 impl Storage {
     pub fn new() -> Storage {
-        let storage = Storage {
+        Storage {
             title: "New storage".into(),
             credentials: None,
             sources: vec![],
             tags: vec![],
-        };
-        storage
+        }
     }
 
     pub fn get(&self, index: usize) -> Option<Source> {
@@ -87,7 +86,7 @@ impl Storage {
     pub fn setup_storage(&mut self, cred: StorageCredentials) {
         self.credentials = Some(cred);
         (self.sources, self.tags) = match &self.credentials.as_ref().unwrap() {
-            StorageCredentials::Local(path_buf) => load_local_sources(&path_buf),
+            StorageCredentials::Local(path_buf) => load_local_sources(path_buf),
         }
     }
 

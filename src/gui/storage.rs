@@ -20,10 +20,14 @@ use egui::{Color32, Label, RichText, Sense, Ui};
 use rfd::FileDialog;
 
 use crate::{
-    application::Application, audio::{Audio, track::Track}, colors, gui::{
+    application::Application,
+    audio::{Audio, AudioCell, track::Track},
+    colors,
+    gui::{
         events::{Event, Events},
         widgets,
-    }, storage::{Storage, StorageCredentials}
+    },
+    storage::{Storage, StorageCredentials},
 };
 
 pub struct StorageWidget {
@@ -64,7 +68,7 @@ impl StorageWidget {
 
         if let Some(path) = path {
             events.push_back(Event::SetupStorage {
-                credentials: StorageCredentials::Local ( path ),
+                credentials: StorageCredentials::Local(path),
             });
         }
     }
@@ -86,7 +90,7 @@ impl StorageWidget {
     }
 
     fn send_source_to_player(&self, index: usize, events: &mut Events) {
-        let audio: Audio = Rc::new(RefCell::new(Box::new(Track::new(
+        let audio: AudioCell = Rc::new(RefCell::new(Audio::Track(Track::new(
             self.storage.borrow().get(index).unwrap(),
         ))));
         events.push_back(Event::Play { audio });
@@ -94,7 +98,7 @@ impl StorageWidget {
 
     fn send_source_to_map(&self, index: usize, events: &mut Events) {
         let source = self.storage.borrow().get(index).unwrap();
-        let audio: Audio = Rc::new(RefCell::new(Box::new(Track::new(source))));
+        let audio: Audio = Audio::Track(Track::new(source));
         events.push_back(Event::AddAudioToPlaylist { audio });
     }
 
@@ -122,8 +126,8 @@ impl StorageWidget {
         ui.separator();
         ui.horizontal(|ui| {
             ui.label("🔎".to_string());
-            let search =
-                egui::TextEdit::singleline(&mut self.search_pattern).hint_text(t!("search_title_or_tag"));
+            let search = egui::TextEdit::singleline(&mut self.search_pattern)
+                .hint_text(t!("search_title_or_tag"));
             if ui.add(search).changed() {
                 self.find();
             }

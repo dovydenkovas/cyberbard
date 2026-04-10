@@ -32,9 +32,7 @@ pub struct Application {
     #[serde(skip)]
     player: Rc<RefCell<Player>>,
     #[serde(skip)]
-    selected_playlist: AudioCell,
-    #[serde(skip)]
-    current_playing: AudioCell,
+    selected_playlist: Option<AudioCell>,
 }
 
 impl Application {
@@ -47,8 +45,7 @@ impl Application {
             storage,
             root_map,
             player,
-            selected_playlist: Rc::new(RefCell::new(None)),
-            current_playing: Rc::new(RefCell::new(None)),
+            selected_playlist: None,
         }
     }
 
@@ -77,29 +74,28 @@ impl Application {
         Rc::clone(&self.root_map)
     }
 
-    pub fn get_selected_playlist(&self) -> AudioCell {
-        Rc::clone(&self.selected_playlist)
+    pub fn get_selected_playlist(&self) -> Option<AudioCell> {
+        self.selected_playlist.clone()
     }
 
     pub fn has_selected_playlist(&self) -> bool {
-        self.selected_playlist.borrow().is_some()
+        self.selected_playlist.is_some()
     }
 
-    pub fn get_current_playing(&self) -> AudioCell {
-        Rc::clone(&self.current_playing)
+    pub fn get_current_playing(&self) -> Option<AudioCell> {
+        self.player.borrow().get_current_playing()
     }
 
-    pub fn select_playlist(&self, comp: Option<Audio>) {
-        self.selected_playlist.replace(comp);
+    pub fn select_playlist(&mut self, comp: AudioCell) {
+        self.selected_playlist = Some(comp);
     }
 
-    pub fn player_set_audio(&mut self, audio: Audio) {
-        self.current_playing.replace(Some(Rc::clone(&audio)));
-        let s = audio.borrow().get_stream();
-        self.player.borrow_mut().set_stream(s.unwrap());
-        self.player
-            .borrow_mut()
-            .set_volume(audio.borrow().get_volume());
+    pub fn reset_playlist(&mut self) {
+        self.selected_playlist = None;
+    }
+
+    pub fn player_set_audio(&mut self, audio: Option<AudioCell>) {
+        self.player.borrow_mut().set_audio(audio);
     }
 
     pub fn player_play(&mut self) {
@@ -111,11 +107,11 @@ impl Application {
     }
 
     pub fn player_set_track_volume(&mut self, volume: f32, playlist_index: usize, index: usize) {
-        if self.current_playing.borrow().is_some()
-            && self.selected_playlist.borrow().is_some()
+        if self.player.borrow().has_audio()
+            && self.selected_playlist.is_some()
             && Rc::ptr_eq(
-                self.selected_playlist.borrow().as_ref().unwrap(),
-                self.current_playing.borrow().as_ref().unwrap(),
+                self.selected_playlist.as_ref().unwrap(),
+                &self.get_current_playing().unwrap(),
             )
         {
             self.player
@@ -125,11 +121,11 @@ impl Application {
     }
 
     pub fn player_sync(&mut self) {
-        if self.current_playing.borrow().is_some() {
+        if self.player.borrow().has_audio() {
             let stream = self
-                .current_playing
+                .player
                 .borrow()
-                .as_ref()
+                .get_current_playing()
                 .unwrap()
                 .borrow()
                 .get_stream();
@@ -137,9 +133,9 @@ impl Application {
         }
     }
 
-    pub fn is_playing(&self, audio: &Audio) -> bool {
-        if let Some(playing) = self.current_playing.borrow().as_ref() {
-            Rc::ptr_eq(playing, audio)
+    pub fn is_playing(&self, audio: Option<AudioCell>) -> bool {
+        if let Some(playing) = self.get_current_playing() {
+            Rc::ptr_eq(&playing, &audio.unwrap())
         } else {
             false
         }
@@ -174,10 +170,9 @@ impl Application {
     }
 
     fn replace(&mut self, app: Application) {
-        self.current_playing.replace(None);
         self.player.borrow_mut().reset();
         self.root_map = app.root_map;
-        self.selected_playlist.replace(None);
+        self.selected_playlist = None;
         self.storage = app.storage;
 
         let current = Some(Rc::clone(&self.root_map));
@@ -222,6 +217,5 @@ mod tests {
 
     #[test]
     #[ignore = "todo"]
-    fn application() {
-    }
+    fn application() {}
 }
