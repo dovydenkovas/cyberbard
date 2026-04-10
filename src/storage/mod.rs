@@ -186,7 +186,7 @@ impl Storage {
 
 fn is_music_file(filename: &str) -> bool {
     let filename = filename.to_lowercase();
-    [".mp3", ".flac", ".wav", ".ogg"]
+    [".mp3", ".flac", ".wav", ".ogg", ".aac"]
         .iter()
         .any(|x| filename.ends_with(x))
 }
