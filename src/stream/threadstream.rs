@@ -110,8 +110,11 @@ impl ThreadStream {
         self.is_stopped = true;
     }
 
-    pub fn get_position(&self) -> f32 {
-        self.sink.get_pos().as_secs_f32() / self.tracks[self.current].total_duration()
+    pub fn get_position(&self) -> (usize, f32) {
+        (
+            self.current,
+            self.sink.get_pos().as_secs_f32() / self.tracks[self.current].total_duration(),
+        )
     }
 
     pub fn update_volume(&mut self, volume: f32) {

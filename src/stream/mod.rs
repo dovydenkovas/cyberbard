@@ -136,11 +136,13 @@ impl Stream {
         }
     }
 
-    pub fn get_position(&self) -> f32 {
-        match self.threads.first() {
-            Some(pl) => pl.get_position(),
-            None => 0.0,
+    /// Index and progress of current track in each thread.
+    pub fn get_position(&self) -> Vec<(usize, f32)> {
+        let mut positions = vec![];
+        for thread in self.threads.iter().as_ref() {
+            positions.push(thread.get_position())
         }
+        positions
     }
 
     pub fn update(&mut self) {

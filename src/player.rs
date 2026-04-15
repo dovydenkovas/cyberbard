@@ -19,7 +19,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use crate::audio::AudioCell;
+use crate::audio::playlist::Playlist;
+use crate::audio::track::Track;
+use crate::audio::{Audio, AudioCell};
 use crate::stream::Stream;
 
 enum Command {
@@ -39,7 +41,9 @@ enum Command {
 pub struct Player {
     cmd_tx: Sender<Command>,
     paused: bool,
-    progress: Arc<Mutex<f32>>,
+
+    /// current progress in threads usize - index in thread, f32 - progress
+    progress: Arc<Mutex<Vec<(usize, f32)>>>,
     current_playing: Arc<Mutex<Vec<usize>>>,
     audio: Option<AudioCell>,
 }
@@ -47,7 +51,7 @@ pub struct Player {
 impl Player {
     pub fn new() -> Player {
         let (cmd_tx, cmd_rx): (Sender<Command>, Receiver<Command>) = mpsc::channel();
-        let progress = Arc::new(Mutex::new(0.0));
+        let progress = Arc::new(Mutex::new(Vec::new()));
         let current_playing = Arc::new(Mutex::new(vec![]));
 
         let total_progress = Arc::clone(&progress);
@@ -166,8 +170,31 @@ impl Player {
         self.paused = true;
     }
 
-    pub fn get_position(&self) -> f32 {
-        *self.progress.lock().unwrap()
+    pub fn get_position(&self) -> Vec<(String, f32)> {
+        if let Some(a) = self.audio.as_ref() {
+            let progresses = self.progress.lock().unwrap();
+            return match &*a.borrow() {
+                Audio::Track(track) => {
+                    vec![(track.get_title(), progresses[0].1)]
+                }
+                Audio::Playlist(playlist) => {
+                    let mut positions = Vec::new();
+                    let threads = playlist.threads().unwrap();
+                    for (i, p) in progresses.iter().enumerate() {
+                        positions.push((
+                            playlist
+                                .get_audio(&threads[i], p.0)
+                                .unwrap()
+                                .borrow()
+                                .get_title(),
+                            p.1,
+                        ));
+                    }
+                    positions
+                }
+            };
+        }
+        return Vec::new();
     }
 
     pub fn set_volume(&mut self, vol: f32) {

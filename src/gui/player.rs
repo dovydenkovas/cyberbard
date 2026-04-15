@@ -70,9 +70,17 @@ impl PlayerWidget {
         });
 
         ui.add_space(20.0);
-        let progress_bar =
-            egui::ProgressBar::new(self.player.borrow().get_position()).desired_height(4.0);
-        ui.add(progress_bar);
+
+        let positions = self.player.borrow().get_position();
+        for (track, position) in positions {
+            ui.horizontal(|ui| {
+                ui.label(track);
+                let progress_bar = egui::ProgressBar::new(position).desired_height(4.0);
+                ui.add(progress_bar);
+                ui.add_space(5.0);
+            });
+        }
+
         ui.add_space(10.0);
 
         ui.horizontal(|ui| {
