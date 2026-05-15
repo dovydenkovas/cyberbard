@@ -71,10 +71,3 @@ impl Audio {
 }
 
 pub type AudioCell = Rc<RefCell<Audio>>;
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum AudioError {
-    NotAPlaylist,
-    NotATrack,
-    OutOfRange,
-}

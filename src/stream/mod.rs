@@ -75,14 +75,6 @@ impl Stream {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.threads.len() == 0
-    }
-
-    pub fn get_threads(self) -> Vec<ThreadStream> {
-        self.threads
-    }
-
     pub fn get_current_playing(&self) -> Vec<usize> {
         let mut res = vec![];
         for th in &self.threads {
@@ -191,7 +183,6 @@ mod tests {
         stream.set_partial_volume(0.3, 0, 0);
         assert_eq!(1.0, stream.total_volume);
 
-        assert!(stream.is_empty());
         assert!(stream.get_current_playing().is_empty());
 
         // Empty
@@ -203,11 +194,9 @@ mod tests {
         stream.pause();
         stream.stop();
 
-        assert_eq!(0.0, stream.get_position());
+        assert_eq!(Vec::new() as Vec<(usize, f32)>, stream.get_position());
         stream.update();
         stream.goto_track(0, 0);
-
-        assert!(stream.get_threads().is_empty());
     }
 
     #[test]
@@ -230,7 +219,6 @@ mod tests {
         stream.set_partial_volume(0.3, 0, 0);
         assert_eq!(1.0, stream.total_volume);
 
-        assert!(stream.is_empty());
         assert!(stream.get_current_playing().is_empty());
 
         // Empty
@@ -242,10 +230,8 @@ mod tests {
         stream.pause();
         stream.stop();
 
-        assert_eq!(0.0, stream.get_position());
+        assert_eq!(vec![(0, 0.0)], stream.get_position());
         stream.update();
         stream.goto_track(0, 0);
-
-        assert!(stream.get_threads().is_empty());
     }
 }

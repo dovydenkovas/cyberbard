@@ -25,11 +25,11 @@ use std::{
 use egui::TextureHandle;
 use serde::{Deserialize, Serialize};
 
-use crate::audio::{Audio, playlist::Playlist};
+use crate::audio::{Audio, AudioCell, playlist::Playlist};
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
-    audio: Vec<Audio>,
+    audio: Vec<AudioCell>,
     maps: BTreeMap<Point, Rc<RefCell<Scene>>>,
 
     #[serde(skip)]
@@ -102,7 +102,7 @@ impl Scene {
     }
 
     pub fn push_new_audio(&mut self) {
-        let audio: Audio = Audio::Playlist(Playlist::new());
+        let audio: AudioCell = Rc::new(RefCell::new(Audio::Playlist(Playlist::new())));
         self.audio.push(audio);
     }
 
@@ -110,7 +110,7 @@ impl Scene {
         self.audio.remove(index);
     }
 
-    pub fn get_audio(&self, index: usize) -> Audio {
+    pub fn get_audio(&self, index: usize) -> AudioCell {
         self.audio[index].clone()
     }
 
@@ -156,13 +156,4 @@ impl Ord for Point {
             self
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[ignore = "todo"]
-    fn scene() {}
 }

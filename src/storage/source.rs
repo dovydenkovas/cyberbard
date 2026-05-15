@@ -67,10 +67,6 @@ impl Source {
     pub fn tags(&self) -> Vec<usize> {
         self.tags.clone()
     }
-
-    pub fn has_tag(&self, tag_index: usize) -> bool {
-        self.tags.binary_search(&tag_index).is_ok()
-    }
 }
 
 #[cfg(test)]
@@ -95,24 +91,12 @@ mod tests {
             source.attach_tag(i);
         }
 
-        assert!(source.has_tag(0));
-        assert!(source.has_tag(1));
-        assert!(source.has_tag(6));
-        assert!(source.has_tag(3));
-        assert!(source.has_tag(10));
-        assert!(!source.has_tag(11));
-
         assert_eq!(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], source.tags());
         source.unattach_tag(0);
-        assert!(!source.has_tag(0));
         source.unattach_tag(1);
-        assert!(!source.has_tag(1));
         source.unattach_tag(6);
-        assert!(!source.has_tag(6));
         source.unattach_tag(13);
-        assert!(!source.has_tag(13));
         source.unattach_tag(8);
-        assert!(!source.has_tag(8));
         assert_eq!(vec![2, 3, 4, 5, 7, 9, 10], source.tags());
 
         source.remove_tag_and_shift_indexes(5);

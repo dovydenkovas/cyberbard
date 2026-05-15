@@ -56,10 +56,6 @@ impl Storage {
         self.sources.get(index).cloned()
     }
 
-    pub fn len(&self) -> usize {
-        self.sources.len()
-    }
-
     pub fn attach_tag(&mut self, source_index: usize, tag: String) {
         if source_index >= self.sources.len() {
             return;
@@ -204,7 +200,6 @@ mod tests {
         assert!(storage.get_tags(0).is_empty());
         assert!(storage.find("substr".into()).is_empty());
         assert!(storage.get(0).is_none());
-        assert_eq!(0, storage.len());
 
         assert_eq!("New storage", storage.get_caption());
         storage.set_caption("title".into());

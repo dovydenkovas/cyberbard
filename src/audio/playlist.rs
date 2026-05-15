@@ -17,10 +17,17 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
-use crate::audio::{Audio, AudioCell, AudioError};
+use crate::audio::{Audio, AudioCell};
 use crate::stream::Stream;
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct PlaylistThread {
+    title: String,
+    tracks: Vec<AudioCell>,
+}
 
 /// Playlist is container for other playlists and tracks.
 /// Contains common settings for group of music and procedure summary Stream.
@@ -29,7 +36,7 @@ use crate::stream::Stream;
 pub struct Playlist {
     volume: f32,
     title: String,
-    threads: Vec<(String, Vec<AudioCell>)>,
+    threads: Vec<PlaylistThread>,
 }
 
 impl Playlist {
@@ -43,12 +50,12 @@ impl Playlist {
         }
     }
 
-    fn contains_thread(&self, caption: &str) -> bool {
-        self.threads.iter().any(|th| th.0 == caption)
+    fn contains_thread(&self, title: &str) -> bool {
+        self.threads.iter().any(|th| th.title == title)
     }
 
-    fn find_thread(&self, caption: &str) -> Option<usize> {
-        self.threads.iter().position(|th| th.0 == caption)
+    fn find_thread(&self, title: &str) -> Option<usize> {
+        self.threads.iter().position(|th| th.title == title)
     }
 }
 
@@ -69,42 +76,55 @@ impl Playlist {
         self.volume = volume.clamp(0.0, 1.0);
     }
 
-    pub fn get_stream(&self) -> Result<Stream, Box<dyn std::error::Error>> {
+    pub fn get_stream(&self) -> Result<Stream> {
         let mut stream = Stream::new(vec![], self.volume);
 
-        for (_, pl) in self.threads.iter() {
+        for th in &self.threads {
             let mut substream = Stream::new(vec![], self.volume);
-            for audio in pl {
-                substream.merge(audio.borrow().get_stream()?);
+            for audio in &th.tracks {
+                substream.merge(
+                    audio
+                        .borrow()
+                        .get_stream()
+                        .map_err(|e| anyhow!(e.to_string()))?,
+                );
             }
             stream.merge_parallel(substream);
         }
         Ok(stream)
     }
 
-    pub fn push_thread(&mut self, caption: &str) -> Result<(), AudioError> {
-        if !self.contains_thread(caption) {
-            self.threads.push((caption.to_string(), Vec::new()));
-        }
-        Ok(())
-    }
-
-    pub fn remove_thread(&mut self, caption: &str) {
-        self.threads.retain(|th| th.0 != caption);
-    }
-
-    pub fn rename_thread(&mut self, old_caption: &str, new_caption: &str) {
-        if !self.contains_thread(new_caption) {
-            for thread in self.threads.iter_mut() {
-                if thread.0 == old_caption {
-                    thread.0 = new_caption.to_string();
-                }
-            }
+    pub fn push_thread(&mut self, title: &str) {
+        if !self.contains_thread(title) {
+            self.threads.push(PlaylistThread {
+                title: title.to_string(),
+                tracks: Vec::new(),
+            });
         }
     }
 
-    pub fn threads(&self) -> Result<Vec<String>, AudioError> {
-        Ok(self.threads.iter().map(|k| k.0.clone()).collect())
+    pub fn remove_thread(&mut self, title: &str) {
+        self.threads.retain(|th| th.title != title);
+    }
+
+    pub fn rename_thread(&mut self, old_title: &str, new_title: &str) {
+        if !self.contains_thread(new_title) {
+            self.threads
+                .iter_mut()
+                .filter(|t| t.title == old_title)
+                .for_each(|t| t.title = new_title.into());
+        }
+    }
+
+    pub fn threads(&self) -> impl Iterator<Item = &str> + '_ {
+        self.threads.iter().map(|k| k.title.as_str())
+    }
+
+    pub fn unempty_threads(&self) -> impl Iterator<Item = &str> + '_ {
+        self.threads
+            .iter()
+            .filter(|th| !th.tracks.is_empty())
+            .map(|k| k.title.as_str())
     }
 
     pub fn index_of_thread(&self, name: &str) -> usize {
@@ -112,49 +132,55 @@ impl Playlist {
     }
 
     pub fn is_thread_empty(&self, name: &str) -> bool {
-        self.threads[self.find_thread(name).unwrap()].1.is_empty()
+        self.threads[self.find_thread(name).unwrap()]
+            .tracks
+            .is_empty()
     }
 
-    pub fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<(), AudioError> {
-        match self.find_thread(thread) {
-            Some(i) => {
-                self.threads[i].1.push(Rc::new(RefCell::new(audio)));
-                Ok(())
-            }
-            None => Err(AudioError::OutOfRange),
-        }
+    pub fn push_audio(&mut self, thread: &str, audio: Audio) -> Result<()> {
+        let idx = self
+            .find_thread(thread)
+            .ok_or_else(|| anyhow!("thread not found: {}", thread))?;
+        self.threads[idx].tracks.push(Rc::new(RefCell::new(audio)));
+        Ok(())
     }
 
-    pub fn remove_audio(&mut self, thread: &str, index: usize) -> Result<(), AudioError> {
-        match self.find_thread(thread) {
-            Some(i) => {
-                self.threads[i].1.remove(index);
-                Ok(())
-            }
-            None => Err(AudioError::OutOfRange),
-        }
-    }
+    pub fn remove_audio(&mut self, thread: &str, index: usize) -> Result<()> {
+        let idx = self
+            .find_thread(thread)
+            .ok_or_else(|| anyhow!("thread not found: {}", thread))?;
 
-    pub fn get_audio(&self, thread: &str, index: usize) -> Result<AudioCell, AudioError> {
-        if !self.contains_thread(thread) {
-            return Err(AudioError::OutOfRange);
-        }
-
-        match self.threads[self.find_thread(thread).unwrap()]
-            .1
-            .len()
-            .cmp(&index)
-        {
-            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(AudioError::OutOfRange),
+        match self.threads[idx].tracks.len().cmp(&index) {
+            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(anyhow!(
+                "try to get element with index {} from thread with len {}",
+                index,
+                self.threads[idx].tracks.len()
+            )),
             std::cmp::Ordering::Greater => {
-                Ok(self.threads[self.find_thread(thread).unwrap()].1[index].clone())
+                self.threads[idx].tracks.remove(index);
+                Ok(())
             }
+        }
+    }
+
+    pub fn get_audio(&self, thread: &str, index: usize) -> Result<AudioCell> {
+        let idx = self
+            .find_thread(thread)
+            .ok_or_else(|| anyhow!("thread not found: {}", thread))?;
+
+        match self.threads[idx].tracks.len().cmp(&index) {
+            std::cmp::Ordering::Less | std::cmp::Ordering::Equal => Err(anyhow!(
+                "try to get element with index {} from thread with len {}",
+                index,
+                self.threads[idx].tracks.len()
+            )),
+            std::cmp::Ordering::Greater => Ok(self.threads[idx].tracks[index].clone()),
         }
     }
 
     pub fn audio_count(&self, thread: &str) -> usize {
         match self.find_thread(thread) {
-            Some(i) => self.threads[i].1.len(),
+            Some(i) => self.threads[i].tracks.len(),
             None => 0,
         }
     }
@@ -180,11 +206,9 @@ mod tests {
         playlist.set_volume(1.2);
         assert_eq!(1.0, playlist.get_volume());
 
-        assert!(playlist.get_stream().unwrap().is_empty());
-
-        assert!(playlist.push_thread("tread".into()).is_ok());
-        assert!(playlist.push_thread("thread 1".into()).is_ok());
-        assert!(playlist.push_thread("thread 2".into()).is_ok());
+        playlist.push_thread("tread".into());
+        playlist.push_thread("thread 1".into());
+        playlist.push_thread("thread 2".into());
 
         playlist.rename_thread("tread".into(), "thread".into());
         playlist.rename_thread("12".into(), "14".into());
@@ -194,7 +218,10 @@ mod tests {
 
         assert_eq!(
             vec!["thread".to_string(), "thread 1".to_string()],
-            playlist.threads().unwrap()
+            playlist
+                .threads()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>()
         );
 
         assert_eq!(1, playlist.index_of_thread("thread 1".into()));

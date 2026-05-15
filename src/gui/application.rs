@@ -83,7 +83,7 @@ impl ApplicationImp {
                     }
                 }
                 Event::Play { audio } => {
-                    self.player_widget.play(audio.clone());
+                    self.player_widget.play(Rc::clone(&audio));
                     self.application.borrow_mut().player_set_audio(Some(audio));
                     self.application.borrow_mut().player_play();
                 }

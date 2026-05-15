@@ -19,8 +19,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use crate::audio::playlist::Playlist;
-use crate::audio::track::Track;
 use crate::audio::{Audio, AudioCell};
 use crate::stream::Stream;
 
@@ -179,22 +177,22 @@ impl Player {
                 }
                 Audio::Playlist(playlist) => {
                     let mut positions = Vec::new();
-                    let threads = playlist.threads().unwrap();
-                    for (i, p) in progresses.iter().enumerate() {
+                    let threads = playlist.unempty_threads();
+                    for (i, th) in threads.enumerate() {
+                        if i >= progresses.len() {
+                            break;
+                        }
+                        let pr = &progresses[i];
                         positions.push((
-                            playlist
-                                .get_audio(&threads[i], p.0)
-                                .unwrap()
-                                .borrow()
-                                .get_title(),
-                            p.1,
+                            playlist.get_audio(&th, pr.0).unwrap().borrow().get_title(),
+                            pr.1,
                         ));
                     }
                     positions
                 }
             };
         }
-        return Vec::new();
+        Vec::new()
     }
 
     pub fn set_volume(&mut self, vol: f32) {
@@ -224,13 +222,4 @@ impl Default for Player {
     fn default() -> Self {
         Self::new()
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[ignore = "todo"]
-    fn player() {}
 }

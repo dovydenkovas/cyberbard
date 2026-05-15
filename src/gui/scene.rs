@@ -68,7 +68,7 @@ impl SceneWidget {
 
     fn select_playlist(&self, audio: AudioCell, events: &mut Events) {
         events.push_back(Event::Play {
-            audio: audio.clone(),
+            audio: Rc::clone(&audio),
         });
         events.push_back(Event::Select { audio });
     }
@@ -77,9 +77,7 @@ impl SceneWidget {
         let i = self.scene.borrow().audio_count();
         self.scene.borrow_mut().push_new_audio();
         let comp = self.scene.borrow().get_audio(i);
-        self.application
-            .borrow_mut()
-            .select_playlist(Rc::new(RefCell::new(comp)));
+        self.application.borrow_mut().select_playlist(comp);
     }
 
     pub fn update(&mut self, ctx: &egui::Context, ui: &mut Ui, events: &mut Events) {
@@ -135,7 +133,7 @@ impl SceneWidget {
                             let mut remove_after_render = None;
                             for i in 0..self.scene.borrow().audio_count() {
                                 if let Some(c) = comp.as_ref()
-                                    && self.scene.borrow().get_audio(i) == *c.borrow()
+                                    && Rc::ptr_eq(&self.scene.borrow().get_audio(i), c)
                                 {
                                     self.render_playlist(
                                         ui,
@@ -194,7 +192,7 @@ impl SceneWidget {
         is_selected: bool,
     ) {
         let audio = map.borrow().get_audio(index);
-        let title = audio.get_title();
+        let title = audio.borrow().get_title();
 
         let bg_color = if is_selected {
             ui.visuals().disable(ui.visuals().selection.bg_fill)
@@ -209,7 +207,7 @@ impl SceneWidget {
 
         let response = ui.add(btn);
         if response.clicked() {
-            self.select_playlist(Rc::new(RefCell::new(audio)), events);
+            self.select_playlist(Rc::clone(&audio), events);
         }
         if response.secondary_clicked() {
             remove_after_render.replace(index);

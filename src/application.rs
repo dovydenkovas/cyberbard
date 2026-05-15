@@ -18,11 +18,7 @@ use std::{cell::RefCell, fs, io, path::PathBuf, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Player, Scene, Storage,
-    audio::{Audio, AudioCell},
-    storage::StorageCredentials,
-};
+use crate::{Player, Scene, Storage, audio::AudioCell, storage::StorageCredentials};
 
 #[derive(Serialize, Deserialize)]
 pub struct Application {
@@ -209,13 +205,4 @@ fn restore_map(
         let next = Some(Rc::clone(&m));
         restore_map(&mut m, current.clone(), next);
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[ignore = "todo"]
-    fn application() {}
 }

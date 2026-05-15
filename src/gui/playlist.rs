@@ -49,11 +49,11 @@ impl PlaylistWidget {
         {
             let thread = if let Some(thread) = &self.current_thread {
                 thread.clone()
-            } else if let Some(thread) = playlist.threads().unwrap().first() {
-                thread.clone()
+            } else if let Some(thread) = playlist.threads().next() {
+                thread.to_string()
             } else {
                 let thread = generate_thread_name(Vec::new());
-                playlist.push_thread(&thread).unwrap();
+                playlist.push_thread(&thread);
                 thread
             };
 
@@ -128,9 +128,10 @@ impl PlaylistWidget {
 
                             let mut guard = playlist.borrow_mut();
                             if let Audio::Playlist(ref mut playlist) = *guard {
-                                let threads = playlist.threads().unwrap();
+                                let threads: Vec<String> =
+                                    playlist.threads().map(|s| s.to_string()).collect();
 
-                                for mut thread in threads {
+                                for thread in threads {
                                     let mut remove_elements = vec![];
                                     let index = playlist.index_of_thread(&thread);
 
@@ -138,7 +139,7 @@ impl PlaylistWidget {
                                         ui,
                                         events,
                                         &mut remove_elements,
-                                        &mut thread,
+                                        &thread,
                                         playlist,
                                         current_playing.as_ref().unwrap_or(&vec![]).get(index),
                                     );
@@ -153,16 +154,16 @@ impl PlaylistWidget {
                                 }
 
                                 ui.vertical_centered(|ui| {
-                                    let threads = playlist.threads().unwrap();
-                                    let last_thread: Option<&String> = threads.last();
+                                    let last_thread: Option<&str> = playlist.threads().last();
                                     if ui.button("+").clicked()
                                         && (last_thread.is_none()
                                             || !playlist.is_thread_empty(last_thread.unwrap()))
                                     {
-                                        let thread =
-                                            generate_thread_name(playlist.threads().unwrap());
+                                        let thread = generate_thread_name(
+                                            playlist.threads().map(|s| s.to_string()).collect(),
+                                        );
 
-                                        playlist.push_thread(&thread).unwrap();
+                                        playlist.push_thread(&thread);
                                         self.current_thread = Some(thread);
                                     }
                                 });
@@ -182,11 +183,11 @@ impl PlaylistWidget {
         ui: &mut Ui,
         events: &mut Events,
         remove_elements: &mut Vec<usize>,
-        thread: &mut String,
+        thread: &str,
         playlist: &mut Playlist,
         current_playing: Option<&usize>,
     ) {
-        let mut title = thread.clone();
+        let mut title = thread.to_string();
         let color =
             if self.current_thread.is_some() && &title == self.current_thread.as_ref().unwrap() {
                 ui.visuals().disable(ui.visuals().selection.bg_fill)
@@ -209,11 +210,10 @@ impl PlaylistWidget {
                 );
                 if title_edit.changed() {
                     playlist.rename_thread(thread, &title);
-                    *thread = title;
                 }
 
                 if title_edit.has_focus() {
-                    self.current_thread = Some(thread.clone());
+                    self.current_thread = Some(title.clone());
                 }
 
                 if ui.label("🗙").clicked() {
@@ -262,8 +262,6 @@ impl PlaylistWidget {
                                 volume,
                                 playlist_index: playlist
                                     .threads()
-                                    .unwrap()
-                                    .iter()
                                     .position(|s| s == thread)
                                     .unwrap(),
                                 index: i,

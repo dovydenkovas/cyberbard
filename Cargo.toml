@@ -4,6 +4,7 @@ version = "0.2.2"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.102"
 eframe = "0.33.0"
 egui = "0.33.0"
 egui_alignments = "0.3.4"

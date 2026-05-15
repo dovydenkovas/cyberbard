@@ -31,7 +31,7 @@ use crate::{
 };
 
 pub struct StorageWidget {
-    caption: widgets::EditableHeader,
+    title: widgets::EditableHeader,
     search_pattern: String,
     shown_music: Vec<usize>,
     storage: Rc<RefCell<Storage>>,
@@ -45,7 +45,7 @@ impl StorageWidget {
         application: Rc<RefCell<Application>>,
     ) -> StorageWidget {
         let mut widget = StorageWidget {
-            caption: widgets::EditableHeader::new("".to_string()),
+            title: widgets::EditableHeader::new("".to_string()),
             search_pattern: "".to_string(),
             storage,
             shown_music: vec![],
@@ -57,7 +57,7 @@ impl StorageWidget {
     }
 
     pub fn sync_with_storage(&mut self) {
-        self.caption.set_text(self.storage.borrow().get_caption());
+        self.title.set_text(self.storage.borrow().get_caption());
         self.find();
     }
 
@@ -116,7 +116,7 @@ impl StorageWidget {
                 self.save_project(events)
             };
             ui.vertical_centered(|ui| {
-                if let Some(new_caption) = self.caption.update(ui) {
+                if let Some(new_caption) = self.title.update(ui) {
                     self.storage.borrow_mut().set_caption(new_caption);
                 }
             });

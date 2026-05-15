@@ -22,8 +22,8 @@ use walkdir::WalkDir;
 
 use crate::storage::is_music_file;
 use crate::storage::tag::Tag;
-use rodio::Source;
 use crate::stream::Opener;
+use rodio::Source;
 
 pub struct LocalOpener {
     filename: String,
@@ -89,7 +89,7 @@ pub fn load_local_sources(storage_path: &PathBuf) -> (Vec<super::source::Source>
                 .to_string();
 
             let mut new_source = super::source::Source::new(filename, title);
-            if let Some(i) = tags.iter().position(|p: &Tag| {p.get_text() == tag}) {
+            if let Some(i) = tags.iter().position(|p: &Tag| p.get_text() == tag) {
                 new_source.attach_tag(i);
             } else {
                 let i = tags.len();
@@ -102,9 +102,8 @@ pub fn load_local_sources(storage_path: &PathBuf) -> (Vec<super::source::Source>
         }
     }
 
-   (sources, tags)
+    (sources, tags)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -115,7 +114,6 @@ mod tests {
         let mut s = Storage::new();
         s.setup_storage(StorageCredentials::Local("test/".into()));
         assert_eq!("New storage", s.get_caption());
-        assert_eq!(1, s.len());
         assert_eq!(vec![0], s.find("Metal".into()));
         assert_eq!("test", s.get_tags(0)[0].get_text());
         assert!(s.all_tags(0)[0].1);
